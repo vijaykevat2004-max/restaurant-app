@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   Utensils,
@@ -6,7 +6,6 @@ import {
   Plus,
   Minus,
   Check,
-  Loader2,
   QrCode,
   CreditCard,
   ArrowLeft,
@@ -14,14 +13,11 @@ import {
   ChefHat,
   Sparkles,
   Flame,
-  Star,
   Crown,
-  PartyPopper,
   IceCream,
   Coffee,
   Pizza,
   X,
-  Timer,
   RefreshCw,
   Bell,
   Volume2,
@@ -44,14 +40,6 @@ interface OrderInfo {
   orderNumber: number;
   status: string;
 }
-
-const CATEGORY_ICONS: Record<string, React.ReactNode> = {
-  'Starters': <Flame className="w-4 h-4" />,
-  'Main Course': <Utensils className="w-4 h-4" />,
-  'Breads': <Pizza className="w-4 h-4" />,
-  'Beverages': <Coffee className="w-4 h-4" />,
-  'Desserts': <IceCream className="w-4 h-4" />,
-};
 
 const GRADIENT_COLORS = [
   'from-rose-500 via-pink-500 to-fuchsia-500',
@@ -81,43 +69,41 @@ export function CustomerOrderPage() {
   const [orderStatus, setOrderStatus] = useState<string | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showStatusBanner, setShowStatusBanner] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [menuUpdated, setMenuUpdated] = useState(false);
+  const [menuChanged, setMenuChanged] = useState(false);
+  const [lastItemCount, setLastItemCount] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
   const prevStatus = useRef<string | null>(null);
-  const prevItemCount = useRef<number>(0);
+  const initialized = useRef(false);
 
   const fetchMenu = useCallback(async () => {
-    setIsRefreshing(true);
     try {
-      const res = await fetch(`${API_BASE}/menu/public/${slug}?t=${Date.now()}`, {
-        cache: 'no-store',
-        method: 'GET',
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache',
-        },
-      });
-      const data = await res.json();
+      const timestamp = Date.now();
+      const response = await fetch(`${API_BASE}/menu/public/${slug}?v=${timestamp}`);
+      const data = await response.json();
+      
       if (data.success) {
         const newCategories = data.data || [];
         
         const totalItems = newCategories.reduce((sum: number, c: any) => sum + (c.items?.length || 0), 0);
-        if (prevItemCount.current !== 0 && totalItems !== prevItemCount.current) {
-          setMenuUpdated(true);
-          setTimeout(() => setMenuUpdated(false), 3000);
+        
+        if (initialized.current && totalItems !== lastItemCount && lastItemCount > 0) {
+          setMenuChanged(true);
+          setTimeout(() => setMenuChanged(false), 4000);
         }
-        prevItemCount.current = totalItems;
+        
+        setLastItemCount(totalItems);
+        initialized.current = true;
         
         setCategories(newCategories);
         setRestaurant(data.restaurant);
-        setLastUpdated(new Date());
         
-        setSelectedCategory(prev => {
-          if (!prev) return newCategories[0]?.id || null;
-          const exists = newCategories.some(c => c.id === prev);
-          return exists ? prev : newCategories[0]?.id || null;
-        });
+        if (newCategories.length > 0) {
+          setSelectedCategory(prev => {
+            if (!prev) return newCategories[0].id;
+            const exists = newCategories.some(c => c.id === prev);
+            return exists ? prev : newCategories[0].id;
+          });
+        }
       } else {
         setError(data.error || 'Failed to load menu');
       }
@@ -126,13 +112,12 @@ export function CustomerOrderPage() {
       console.error('Failed to fetch menu:', err);
     } finally {
       setIsLoading(false);
-      setIsRefreshing(false);
     }
-  }, [slug]);
+  }, [slug, lastItemCount]);
 
   useEffect(() => {
     fetchMenu();
-    const interval = setInterval(() => fetchMenu(), 5000);
+    const interval = setInterval(fetchMenu, 5000);
     return () => clearInterval(interval);
   }, [fetchMenu]);
 
@@ -141,7 +126,7 @@ export function CustomerOrderPage() {
 
     const checkOrderStatus = async () => {
       try {
-        const res = await fetch(`https://backend-vijay19.vercel.app/api/v1/menu/public/orders/${order.id}`);
+        const res = await fetch(`${API_BASE}/menu/public/orders/${order.id}`);
         const data = await res.json();
         if (data.success && data.data) {
           const newStatus = data.data.status;
@@ -251,13 +236,21 @@ export function CustomerOrderPage() {
     setError(null);
   };
 
+  const handleRefresh = () => {
+    setRefreshKey(k => k + 1);
+    setIsLoading(true);
+    fetchMenu();
+  };
+
   const selectedCategoryData = categories.find((c) => c.id === selectedCategory);
 
-  if (isLoading) {
+  if (isLoading && categories.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-purple-950 to-slate-950 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 animate-spin" />
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 flex items-center justify-center animate-spin">
+            <Loader className="w-8 h-8 text-white" />
+          </div>
           <p className="text-white/60 text-lg">Loading menu...</p>
         </div>
       </div>
@@ -274,7 +267,7 @@ export function CustomerOrderPage() {
           <h2 className="text-xl font-bold text-white mb-2">Oops!</h2>
           <p className="text-white/60 mb-4">{error}</p>
           <button
-            onClick={fetchMenu}
+            onClick={handleRefresh}
             className="px-6 py-3 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white font-semibold"
           >
             Try Again
@@ -286,15 +279,16 @@ export function CustomerOrderPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-purple-950 to-slate-950 relative">
-      {menuUpdated && (
-        <div className="fixed top-0 left-0 right-0 z-[60] bg-gradient-to-r from-emerald-500 to-teal-500 p-3 flex items-center justify-center gap-2 animate-bounce">
+      {menuChanged && (
+        <div className="fixed top-0 left-0 right-0 z-[100] bg-gradient-to-r from-emerald-500 to-teal-500 p-3 flex items-center justify-center gap-2 shadow-lg animate-pulse">
           <Sparkles className="w-5 h-5 text-white" />
-          <span className="text-white font-bold">Menu Updated!</span>
+          <span className="text-white font-bold">✨ New items added! Refreshing...</span>
         </div>
       )}
+
       {step === 'menu' && (
         <>
-          <header className="sticky top-0 z-50 backdrop-blur-2xl bg-black/20 border-b border-white/10" style={menuUpdated ? { marginTop: '48px' } : {}}>
+          <header className={`sticky top-0 z-50 backdrop-blur-2xl bg-black/20 border-b border-white/10 ${menuChanged ? 'mt-14' : ''}`}>
             <div className="max-w-lg mx-auto px-4 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -305,23 +299,18 @@ export function CustomerOrderPage() {
                     <h1 className="font-bold text-lg text-white">{restaurant?.name || 'Menu'}</h1>
                     <div className="flex items-center gap-2">
                       <p className="text-xs text-white/50">Scan & Order</p>
-                      {lastUpdated && (
-                        <span className="text-xs text-emerald-400 flex items-center gap-1">
-                          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                          Live
-                        </span>
-                      )}
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      <span className="text-xs text-emerald-400">Live</span>
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => fetchMenu(true)}
-                    disabled={isRefreshing}
+                    onClick={handleRefresh}
                     className="p-2 rounded-xl bg-white/10 text-white/70 hover:bg-white/20 transition-all"
                     title="Refresh Menu"
                   >
-                    <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    <RefreshCw className="w-5 h-5" />
                   </button>
                   <button
                     onClick={() => setShowCart(true)}
@@ -351,7 +340,7 @@ export function CustomerOrderPage() {
                       : 'bg-white/10 text-white/70 hover:bg-white/20'
                   }`}
                 >
-                  {cat.name}
+                  {cat.name} ({cat.items.length})
                 </button>
               ))}
             </div>
@@ -529,10 +518,10 @@ export function CustomerOrderPage() {
       {step === 'success' && order && (
         <div className="min-h-screen flex flex-col items-center justify-center px-4">
           {showStatusBanner && (
-            <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-emerald-500 to-teal-500 p-4 flex items-center justify-center gap-3 animate-bounce">
+            <div className="fixed top-0 left-0 right-0 z-[100] bg-gradient-to-r from-emerald-500 to-teal-500 p-4 flex items-center justify-center gap-3 animate-bounce">
               <Bell className="w-6 h-6 text-white" />
               <span className="text-white font-bold text-lg">
-                {orderStatus === 'READY' ? '🎉 Your food is READY!' : 'Your order is being served!'}
+                {orderStatus === 'READY' ? 'Your food is READY!' : 'Your order is being served!'}
               </span>
             </div>
           )}
@@ -563,15 +552,6 @@ export function CustomerOrderPage() {
             )}
 
             <p className="text-white/60 mb-8">Your food is being prepared!</p>
-
-            <div className="flex items-center justify-center gap-4 mb-6">
-              <button
-                onClick={() => setSoundEnabled(!soundEnabled)}
-                className={`p-3 rounded-xl ${soundEnabled ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/10 text-white/40'}`}
-              >
-                {soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
-              </button>
-            </div>
 
             <button
               onClick={handleNewOrder}
