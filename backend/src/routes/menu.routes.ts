@@ -162,18 +162,29 @@ router.post('/categories', requireOwnerOrManager, async (req: AuthenticatedReque
 
     const { name, sortOrder } = req.body;
 
+    console.log('Creating category:', { name, restaurantId: req.user.restaurantId, sortOrder: sortOrder || 0 });
+
     const { data: category, error } = await supabaseAdmin
       .from('MenuCategory')
-      .insert({ name, restaurantId: req.user.restaurantId, sortOrder: sortOrder || 0 })
+      .insert({ 
+        id: `cat-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name, 
+        restaurantId: req.user.restaurantId, 
+        sortOrder: sortOrder || 0 
+      })
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase error:', error);
+      throw error;
+    }
 
+    console.log('Category created:', category);
     res.status(201).json({ success: true, data: category });
   } catch (error: any) {
     console.error('Error creating category:', error);
-    res.status(500).json({ success: false, error: error.message || 'Internal server error' });
+    res.status(500).json({ success: false, error: error.message || 'Internal server error', details: error.code });
   }
 });
 
