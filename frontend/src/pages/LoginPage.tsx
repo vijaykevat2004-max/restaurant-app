@@ -181,6 +181,12 @@ export function LoginPage() {
 
         {/* Footer */}
         <p className="text-center text-white/30 text-sm mt-6">
+          Don't have an account?{' '}
+          <a href="/register" className="text-orange-400 hover:text-orange-300 font-semibold">
+            Sign Up Free
+          </a>
+        </p>
+        <p className="text-center text-white/20 text-xs mt-3">
           Powered by Apna Restaurant SaaS
         </p>
       </div>

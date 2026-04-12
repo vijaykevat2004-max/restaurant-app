@@ -15,6 +15,7 @@ import { MenuPage } from './pages/MenuPage';
 import { QRCodePage } from './pages/QRCodePage';
 import { QRMenuPage } from './pages/QRMenuPage';
 import { CustomerOrderPage } from './pages/CustomerOrderPage';
+import { RegisterPage } from './pages/RegisterPage';
 
 function LoadingScreen() {
   return (
@@ -131,6 +132,7 @@ function App() {
       <div className="relative z-10">
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
           
           <Route
             path="/"

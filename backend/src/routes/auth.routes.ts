@@ -12,6 +12,82 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
+const registerSchema = z.object({
+  restaurantName: z.string().min(1),
+  restaurantAddress: z.string().optional(),
+  ownerName: z.string().min(1),
+  ownerEmail: z.string().email(),
+  ownerPhone: z.string().optional(),
+  password: z.string().min(6),
+});
+
+router.post('/register', async (req: AuthenticatedRequest, res: Response) => {
+  console.log('=== REGISTER REQUEST ===');
+  try {
+    const body = registerSchema.parse(req.body);
+    console.log('Registration for:', body.ownerEmail);
+
+    const bcrypt = require('bcrypt');
+
+    const { data: existingUser } = await supabaseAdmin
+      .from('User')
+      .select('id')
+      .eq('email', body.ownerEmail)
+      .single();
+
+    if (existingUser) {
+      res.status(400).json({ success: false, error: 'Email already registered' });
+      return;
+    }
+
+    const slug = body.restaurantName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const restaurantId = `rest-${Date.now()}`;
+
+    await supabaseAdmin.from('Restaurant').insert({
+      id: restaurantId,
+      name: body.restaurantName,
+      slug,
+      address: body.restaurantAddress || null,
+    });
+
+    const branchId = `branch-${Date.now()}`;
+    await supabaseAdmin.from('Branch').insert({
+      id: branchId,
+      name: 'Main Branch',
+      restaurantId,
+      address: body.restaurantAddress || null,
+    });
+
+    const passwordHash = await bcrypt.hash(body.password, 10);
+    const userId = `user-${Date.now()}`;
+
+    await supabaseAdmin.from('User').insert({
+      id: userId,
+      email: body.ownerEmail,
+      name: body.ownerName,
+      phone: body.ownerPhone || null,
+      passwordHash,
+      role: 'OWNER',
+      restaurantId,
+      branchId,
+    });
+
+    console.log('Registration success for:', body.ownerEmail);
+
+    res.json({
+      success: true,
+      data: { message: 'Restaurant registered successfully', restaurantId, userId },
+    });
+  } catch (error) {
+    console.error('Registration error:', error);
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ success: false, error: error.errors[0].message });
+      return;
+    }
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
 router.post('/login', async (req: AuthenticatedRequest, res: Response) => {
   console.log('=== LOGIN REQUEST ===');
   try {

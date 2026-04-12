@@ -1,7 +1,22 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../config/database.js';
+import { supabaseAdmin } from '../services/supabase-admin.js';
 
 const router = Router();
+
+// Get all restaurants (public)
+router.get('/restaurants', async (req: Request, res: Response) => {
+  try {
+    const { data: restaurants } = await supabaseAdmin
+      .from('Restaurant')
+      .select('id, name, slug, address');
+
+    res.json({ success: true, data: restaurants || [] });
+  } catch (error) {
+    console.error('Error fetching restaurants:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
 
 router.get('/:slug', async (req: Request, res: Response) => {
   try {
