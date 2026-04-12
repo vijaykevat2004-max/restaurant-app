@@ -81,17 +81,31 @@ export function CustomerOrderPage() {
   const [orderStatus, setOrderStatus] = useState<string | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showStatusBanner, setShowStatusBanner] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const prevStatus = useRef<string | null>(null);
 
-  const fetchMenu = useCallback(async () => {
+  const fetchMenu = useCallback(async (forceRefresh = false) => {
+    setIsRefreshing(true);
     try {
-      const res = await fetch(`${API_BASE}/menu/public/${slug}`);
+      const res = await fetch(`${API_BASE}/menu/public/${slug}?t=${Date.now()}`);
       const data = await res.json();
       if (data.success) {
-        setCategories(data.data || []);
+        const newCategories = data.data || [];
+        setCategories(newCategories);
         setRestaurant(data.restaurant);
-        if (data.data?.length > 0 && !selectedCategory) {
-          setSelectedCategory(data.data[0].id);
+        setLastUpdated(new Date());
+        
+        if (newCategories.length > 0) {
+          if (forceRefresh) {
+            setSelectedCategory(newCategories[0].id);
+          } else {
+            setSelectedCategory(prev => {
+              if (!prev) return newCategories[0].id;
+              const exists = newCategories.some(c => c.id === prev);
+              return exists ? prev : newCategories[0].id;
+            });
+          }
         }
       } else {
         setError(data.error || 'Failed to load menu');
@@ -101,12 +115,13 @@ export function CustomerOrderPage() {
       console.error('Failed to fetch menu:', err);
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
-  }, [slug, selectedCategory]);
+  }, [slug]);
 
   useEffect(() => {
     fetchMenu();
-    const interval = setInterval(fetchMenu, 15000);
+    const interval = setInterval(() => fetchMenu(), 5000);
     return () => clearInterval(interval);
   }, [fetchMenu]);
 
@@ -271,20 +286,38 @@ export function CustomerOrderPage() {
                   </div>
                   <div>
                     <h1 className="font-bold text-lg text-white">{restaurant?.name || 'Menu'}</h1>
-                    <p className="text-xs text-white/50">Scan & Order</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs text-white/50">Scan & Order</p>
+                      {lastUpdated && (
+                        <span className="text-xs text-emerald-400 flex items-center gap-1">
+                          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                          Live
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <button
-                  onClick={() => setShowCart(true)}
-                  className="relative p-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white"
-                >
-                  <ShoppingCart className="w-6 h-6" />
-                  {cart.length > 0 && (
-                    <span className="absolute -top-2 -right-2 w-6 h-6 bg-amber-500 rounded-full text-xs font-bold flex items-center justify-center">
-                      {getCartCount()}
-                    </span>
-                  )}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => fetchMenu(true)}
+                    disabled={isRefreshing}
+                    className="p-2 rounded-xl bg-white/10 text-white/70 hover:bg-white/20 transition-all"
+                    title="Refresh Menu"
+                  >
+                    <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  </button>
+                  <button
+                    onClick={() => setShowCart(true)}
+                    className="relative p-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white"
+                  >
+                    <ShoppingCart className="w-6 h-6" />
+                    {cart.length > 0 && (
+                      <span className="absolute -top-2 -right-2 w-6 h-6 bg-amber-500 rounded-full text-xs font-bold flex items-center justify-center">
+                        {getCartCount()}
+                      </span>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </header>
