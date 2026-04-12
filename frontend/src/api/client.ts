@@ -73,8 +73,11 @@ class ApiClient {
           body: JSON.stringify({ email, password }),
         }
       );
-      this.token = response.data!.token;
-      return response.data!;
+      if (!response.data?.token || !response.data?.user) {
+        throw new Error('Invalid response from server');
+      }
+      this.token = response.data.token;
+      return response.data;
     } catch (e) {
       console.error('Login error:', e);
       throw e;
@@ -82,18 +85,28 @@ class ApiClient {
   }
 
   async logout(): Promise<void> {
-    await this.request('/auth/logout', { method: 'POST' });
+    try {
+      await this.request('/auth/logout', { method: 'POST' });
+    } catch {
+      // ignore logout errors
+    }
     this.token = null;
   }
 
   async getMe(): Promise<User> {
     const response = await this.request<ApiResponse<User>>('/auth/me');
-    return response.data!;
+    if (!response.data) {
+      throw new Error('User data not found');
+    }
+    return response.data;
   }
 
   async getRestaurant(): Promise<Restaurant> {
     const response = await this.request<ApiResponse<Restaurant>>('/restaurant');
-    return response.data!;
+    if (!response.data) {
+      throw new Error('Restaurant not found');
+    }
+    return response.data;
   }
 
   async updateRestaurant(data: Partial<Restaurant>): Promise<Restaurant> {
@@ -101,7 +114,10 @@ class ApiClient {
       method: 'PATCH',
       body: JSON.stringify(data),
     });
-    return response.data!;
+    if (!response.data) {
+      throw new Error('Failed to update restaurant');
+    }
+    return response.data;
   }
 
   async getBranches(): Promise<Branch[]> {
@@ -125,7 +141,7 @@ class ApiClient {
     const response = await this.request<ApiResponse<Order[]>>(`/orders${query ? `?${query}` : ''}`);
     return {
       orders: response.data || [],
-      pagination: (response as unknown as { pagination: { page: number; limit: number; total: number; totalPages: number } }).pagination,
+      pagination: (response as any)?.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 },
     };
   }
 
@@ -138,12 +154,18 @@ class ApiClient {
   async getOrderStats(branchId?: string): Promise<OrderStats> {
     const query = branchId ? `?branchId=${branchId}` : '';
     const response = await this.request<ApiResponse<OrderStats>>(`/orders/stats${query}`);
-    return response.data!;
+    if (!response.data) {
+      return { totalOrders: 0, todayOrders: 0, pendingOrders: 0, completedToday: 0, todayRevenue: 0 };
+    }
+    return response.data;
   }
 
   async getOrder(id: string): Promise<Order> {
     const response = await this.request<ApiResponse<Order>>(`/orders/${id}`);
-    return response.data!;
+    if (!response.data) {
+      throw new Error('Order not found');
+    }
+    return response.data;
   }
 
   async createOrder(items: CartItem[], branchId: string): Promise<Order> {
@@ -151,21 +173,30 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify({ items, branchId }),
     });
-    return response.data!;
+    if (!response.data) {
+      throw new Error('Failed to create order');
+    }
+    return response.data;
   }
 
   async updateOrderStatus(orderId: string, status: string): Promise<Order> {
     const response = await this.request<ApiResponse<Order>>(`/orders/${orderId}/status?status=${status}`, {
       method: 'PATCH',
     });
-    return response.data!;
+    if (!response.data) {
+      throw new Error('Failed to update order');
+    }
+    return response.data;
   }
 
   async cancelOrder(orderId: string): Promise<Order> {
     const response = await this.request<ApiResponse<Order>>(`/orders/${orderId}`, {
       method: 'DELETE',
     });
-    return response.data!;
+    if (!response.data) {
+      throw new Error('Failed to cancel order');
+    }
+    return response.data;
   }
 
   async getMenu(): Promise<MenuCategory[]> {
@@ -178,7 +209,10 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify({ name, sortOrder }),
     });
-    return response.data!;
+    if (!response.data) {
+      throw new Error('Failed to create category');
+    }
+    return response.data;
   }
 
   async createMenuItem(data: {
@@ -193,12 +227,18 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify(data),
     });
-    return response.data!;
+    if (!response.data) {
+      throw new Error('Failed to create menu item');
+    }
+    return response.data;
   }
 
   async getWalletBalance(): Promise<WalletBalance> {
     const response = await this.request<ApiResponse<WalletBalance>>('/wallet/balance');
-    return response.data!;
+    if (!response.data) {
+      return { availableBalance: 0, pendingBalance: 0, totalBalance: 0 };
+    }
+    return response.data;
   }
 
   async getTransactions(params?: {
@@ -215,7 +255,7 @@ class ApiClient {
     const response = await this.request<ApiResponse<Transaction[]>>(`/wallet/transactions${query ? `?${query}` : ''}`);
     return {
       transactions: response.data || [],
-      pagination: (response as unknown as { pagination: { page: number; limit: number; total: number; totalPages: number } }).pagination,
+      pagination: (response as any)?.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 },
     };
   }
 
@@ -233,7 +273,7 @@ class ApiClient {
     const response = await this.request<ApiResponse<Payout[]>>(`/payouts${query ? `?${query}` : ''}`);
     return {
       payouts: response.data || [],
-      pagination: (response as unknown as { pagination: { page: number; limit: number; total: number; totalPages: number } }).pagination,
+      pagination: (response as any)?.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 },
     };
   }
 
@@ -242,7 +282,10 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify({ amount }),
     });
-    return response.data!;
+    if (!response.data) {
+      throw new Error('Failed to create payout');
+    }
+    return response.data;
   }
 }
 

@@ -61,7 +61,9 @@ function App() {
   const { setBranches, selectBranch, selectedBranchId } = useBranchStore();
 
   useEffect(() => {
-    checkAuth();
+    checkAuth().catch(() => {
+      // Ignore auth check errors
+    });
   }, [checkAuth]);
 
   useEffect(() => {
@@ -73,8 +75,7 @@ function App() {
             selectBranch(branches[0].id);
           }
         })
-        .catch((error) => {
-          console.error('Failed to fetch branches:', error);
+        .catch(() => {
           setBranches([]);
         });
     }
@@ -82,12 +83,8 @@ function App() {
 
   return (
     <div className="relative min-h-screen">
-      {/* 3D Floating Background */}
-      <div className="bg-3d">
-        <div className="floating-shape floating-shape-1" />
-        <div className="floating-shape floating-shape-2" />
-        <div className="floating-shape floating-shape-3" />
-      </div>
+      {/* Background gradient */}
+      <div className="fixed inset-0 bg-gradient-to-br from-indigo-950 via-purple-950 to-slate-950" />
       
       <div className="relative z-10">
         <Routes>
