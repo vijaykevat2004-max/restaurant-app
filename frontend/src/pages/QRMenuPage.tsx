@@ -25,7 +25,7 @@ export function QRMenuPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch(`/api/v1/menu/public/${slug}`);
+        const res = await fetch(`https://backend-vijay19.vercel.app/api/v1/menu/public/${slug}`);
         const data = await res.json();
         if (data.success) {
           setCategories(data.data || []);
