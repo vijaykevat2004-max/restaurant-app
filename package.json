@@ -1,0 +1,23 @@
+{
+  "name": "serveflow",
+  "version": "1.0.0",
+  "description": "Multi-tenant restaurant operating system",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "npm -w backend run dev",
+    "dev:frontend": "npm -w frontend run dev",
+    "build": "npm -w backend run build && npm -w frontend run build",
+    "start": "npm -w backend run start",
+    "db:generate": "npm -w backend run db:generate",
+    "db:push": "npm -w backend run db:push",
+    "db:seed": "npm -w backend run db:seed"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

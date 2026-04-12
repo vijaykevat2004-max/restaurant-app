@@ -1,0 +1,169 @@
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Restaurant {
+  id         String   @id @default(uuid())
+  name       String
+  slug       String   @unique
+  logo       String?
+  upiId      String?
+  upiName    String?
+  razorpayId String?
+  paytmMid   String?
+  paytmKey   String?
+  paymentMode String @default("upi")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  users       User[]
+  branches    Branch[]
+  wallet      Wallet?
+  orders      Order[]
+  payouts     Payout[]
+  menuCategories MenuCategory[]
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         String   @default("STAFF")
+  restaurantId String
+  branchId     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+  branch     Branch?    @relation(fields: [branchId], references: [id])
+
+  @@index([restaurantId])
+  @@index([email])
+}
+
+model Branch {
+  id           String   @id @default(uuid())
+  name         String
+  address      String?
+  restaurantId String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+  orders     Order[]
+  users      User[]
+
+  @@index([restaurantId])
+}
+
+model Wallet {
+  id               String   @id @default(uuid())
+  restaurantId     String   @unique
+  availableBalance Decimal  @default(0)
+  pendingBalance   Decimal  @default(0)
+  updatedAt        DateTime @updatedAt
+
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  transactions Ledger[]
+
+  @@index([restaurantId])
+}
+
+model Ledger {
+  id           String   @id @default(uuid())
+  walletId     String
+  restaurantId String
+  type         String
+  amount       Decimal
+  reference    String?
+  description  String
+  metadata     String?
+  createdAt    DateTime @default(now())
+
+  wallet Wallet @relation(fields: [walletId], references: [id])
+
+  @@index([walletId])
+  @@index([restaurantId])
+}
+
+model Order {
+  id            String   @id @default(uuid())
+  orderNumber   Int
+  restaurantId  String
+  branchId      String
+  customerName  String?
+  tableNumber   String?
+  status        String   @default("NEW")
+  items         String
+  subtotal      Decimal
+  tax           Decimal
+  total         Decimal
+  upiId         String?
+  paymentId     String?
+  paymentStatus String   @default("PENDING")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+  branch     Branch     @relation(fields: [branchId], references: [id])
+
+  @@index([restaurantId])
+  @@index([branchId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Payout {
+  id           String    @id @default(uuid())
+  restaurantId String
+  amount       Decimal
+  status       String    @default("PENDING")
+  razorpayId   String?
+  errorMessage String?
+  createdAt    DateTime  @default(now())
+  processedAt  DateTime?
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+
+  @@index([restaurantId])
+  @@index([status])
+}
+
+model MenuCategory {
+  id           String   @id @default(uuid())
+  restaurantId String
+  name         String
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+  items      MenuItem[]
+
+  @@index([restaurantId])
+}
+
+model MenuItem {
+  id          String   @id @default(uuid())
+  categoryId  String
+  name        String
+  description String?
+  price       Decimal
+  imageUrl    String?
+  isAvailable Boolean  @default(true)
+  isVeg       Boolean  @default(true)
+  modifiers   String?
+  prepTime    Int      @default(15)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  category MenuCategory @relation(fields: [categoryId], references: [id])
+
+  @@index([categoryId])
+}

@@ -1,0 +1,249 @@
+import type {
+  ApiResponse,
+  User,
+  Restaurant,
+  Branch,
+  Order,
+  OrderStats,
+  WalletBalance,
+  Transaction,
+  Payout,
+  MenuCategory,
+  MenuItem,
+  CartItem,
+} from '../types';
+
+const API_BASE = import.meta.env.VITE_API_URL || '/api/v1';
+
+class ApiClient {
+  private token: string | null = null;
+
+  setToken(token: string | null) {
+    this.token = token;
+  }
+
+  private async request<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<T> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}${endpoint}`, {
+        ...options,
+        headers: { ...headers, ...options.headers as Record<string, string> },
+      });
+
+      const text = await response.text();
+      console.log('API Response:', response.status, text.substring(0, 200));
+      
+      if (!text) {
+        throw new Error('Empty response from server');
+      }
+
+      const data = JSON.parse(text);
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Request failed');
+      }
+
+      return data;
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error('API Error:', error.message);
+        throw error;
+      }
+      throw new Error('Network error');
+    }
+  }
+
+  async login(email: string, password: string): Promise<{ token: string; user: User }> {
+    console.log('Attempting login for:', email);
+    try {
+      const response = await this.request<ApiResponse<{ token: string; user: User }>>(
+        '/auth/login',
+        {
+          method: 'POST',
+          body: JSON.stringify({ email, password }),
+        }
+      );
+      this.token = response.data!.token;
+      return response.data!;
+    } catch (e) {
+      console.error('Login error:', e);
+      throw e;
+    }
+  }
+
+  async logout(): Promise<void> {
+    await this.request('/auth/logout', { method: 'POST' });
+    this.token = null;
+  }
+
+  async getMe(): Promise<User> {
+    const response = await this.request<ApiResponse<User>>('/auth/me');
+    return response.data!;
+  }
+
+  async getRestaurant(): Promise<Restaurant> {
+    const response = await this.request<ApiResponse<Restaurant>>('/restaurant');
+    return response.data!;
+  }
+
+  async updateRestaurant(data: Partial<Restaurant>): Promise<Restaurant> {
+    const response = await this.request<ApiResponse<Restaurant>>('/restaurant', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+    return response.data!;
+  }
+
+  async getBranches(): Promise<Branch[]> {
+    const response = await this.request<ApiResponse<Branch[]>>('/restaurant/branches');
+    return response.data || [];
+  }
+
+  async getOrders(params?: {
+    branchId?: string;
+    status?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<{ orders: Order[]; pagination: { page: number; limit: number; total: number; totalPages: number } }> {
+    const searchParams = new URLSearchParams();
+    if (params?.branchId) searchParams.set('branchId', params.branchId);
+    if (params?.status) searchParams.set('status', params.status);
+    if (params?.page) searchParams.set('page', params.page.toString());
+    if (params?.limit) searchParams.set('limit', params.limit.toString());
+
+    const query = searchParams.toString();
+    const response = await this.request<ApiResponse<Order[]>>(`/orders${query ? `?${query}` : ''}`);
+    return {
+      orders: response.data || [],
+      pagination: (response as unknown as { pagination: { page: number; limit: number; total: number; totalPages: number } }).pagination,
+    };
+  }
+
+  async getActiveOrders(branchId?: string): Promise<Order[]> {
+    const query = branchId ? `?branchId=${branchId}` : '';
+    const response = await this.request<ApiResponse<Order[]>>(`/orders/active${query}`);
+    return response.data || [];
+  }
+
+  async getOrderStats(branchId?: string): Promise<OrderStats> {
+    const query = branchId ? `?branchId=${branchId}` : '';
+    const response = await this.request<ApiResponse<OrderStats>>(`/orders/stats${query}`);
+    return response.data!;
+  }
+
+  async getOrder(id: string): Promise<Order> {
+    const response = await this.request<ApiResponse<Order>>(`/orders/${id}`);
+    return response.data!;
+  }
+
+  async createOrder(items: CartItem[], branchId: string): Promise<Order> {
+    const response = await this.request<ApiResponse<Order>>('/orders', {
+      method: 'POST',
+      body: JSON.stringify({ items, branchId }),
+    });
+    return response.data!;
+  }
+
+  async updateOrderStatus(orderId: string, status: string): Promise<Order> {
+    const response = await this.request<ApiResponse<Order>>(`/orders/${orderId}/status?status=${status}`, {
+      method: 'PATCH',
+    });
+    return response.data!;
+  }
+
+  async cancelOrder(orderId: string): Promise<Order> {
+    const response = await this.request<ApiResponse<Order>>(`/orders/${orderId}`, {
+      method: 'DELETE',
+    });
+    return response.data!;
+  }
+
+  async getMenu(): Promise<MenuCategory[]> {
+    const response = await this.request<ApiResponse<MenuCategory[]>>('/menu');
+    return response.data || [];
+  }
+
+  async createCategory(name: string, sortOrder?: number): Promise<MenuCategory> {
+    const response = await this.request<ApiResponse<MenuCategory>>('/menu/categories', {
+      method: 'POST',
+      body: JSON.stringify({ name, sortOrder }),
+    });
+    return response.data!;
+  }
+
+  async createMenuItem(data: {
+    categoryId: string;
+    name: string;
+    description?: string;
+    price: number;
+    isAvailable?: boolean;
+    imageUrl?: string;
+  }): Promise<MenuItem> {
+    const response = await this.request<ApiResponse<MenuItem>>('/menu/items', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return response.data!;
+  }
+
+  async getWalletBalance(): Promise<WalletBalance> {
+    const response = await this.request<ApiResponse<WalletBalance>>('/wallet/balance');
+    return response.data!;
+  }
+
+  async getTransactions(params?: {
+    page?: number;
+    limit?: number;
+    type?: string;
+  }): Promise<{ transactions: Transaction[]; pagination: { page: number; limit: number; total: number; totalPages: number } }> {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.set('page', params.page.toString());
+    if (params?.limit) searchParams.set('limit', params.limit.toString());
+    if (params?.type) searchParams.set('type', params.type);
+
+    const query = searchParams.toString();
+    const response = await this.request<ApiResponse<Transaction[]>>(`/wallet/transactions${query ? `?${query}` : ''}`);
+    return {
+      transactions: response.data || [],
+      pagination: (response as unknown as { pagination: { page: number; limit: number; total: number; totalPages: number } }).pagination,
+    };
+  }
+
+  async getPayouts(params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+  }): Promise<{ payouts: Payout[]; pagination: { page: number; limit: number; total: number; totalPages: number } }> {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.set('page', params.page.toString());
+    if (params?.limit) searchParams.set('limit', params.limit.toString());
+    if (params?.status) searchParams.set('status', params.status);
+
+    const query = searchParams.toString();
+    const response = await this.request<ApiResponse<Payout[]>>(`/payouts${query ? `?${query}` : ''}`);
+    return {
+      payouts: response.data || [],
+      pagination: (response as unknown as { pagination: { page: number; limit: number; total: number; totalPages: number } }).pagination,
+    };
+  }
+
+  async createPayout(amount: number): Promise<Payout> {
+    const response = await this.request<ApiResponse<Payout>>('/payouts', {
+      method: 'POST',
+      body: JSON.stringify({ amount }),
+    });
+    return response.data!;
+  }
+}
+
+export const api = new ApiClient();
