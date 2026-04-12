@@ -412,7 +412,7 @@ function ItemModal({
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="glass-card-vibrant w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+      <div className="glass-card-vibrant w-full max-w-lg p-6 max-h-[85vh] flex flex-col">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold text-white">
             {item ? 'Edit Menu Item' : 'Add Menu Item'}
@@ -421,7 +421,7 @@ function ItemModal({
             <X className="w-5 h-5" />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto space-y-4 pr-2">
           <div>
             <label className="block text-sm font-medium text-white/60 mb-2">Category</label>
             <select
@@ -493,7 +493,7 @@ function ItemModal({
             </button>
             <span className="text-white/80 font-medium">{isAvailable ? 'Available' : 'Unavailable'}</span>
           </div>
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-3 pt-4 mt-4 border-t border-white/10 sticky bottom-0 bg-gradient-to-br from-indigo-900/80 to-purple-900/80 -mx-6 -mb-6 px-6 pb-6 rounded-b-2xl">
             <button type="button" onClick={onClose} className="flex-1 py-3 rounded-xl bg-white/10 text-white/60 hover:bg-white/20 transition-all">
               Cancel
             </button>
