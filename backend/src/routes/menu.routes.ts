@@ -10,6 +10,10 @@ router.get('/public/:slug', async (req: Request, res: Response) => {
   try {
     const { slug } = req.params;
 
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+
     const { data: restaurant, error } = await supabaseAdmin
       .from('Restaurant')
       .select('*')

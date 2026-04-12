@@ -83,30 +83,41 @@ export function CustomerOrderPage() {
   const [showStatusBanner, setShowStatusBanner] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [menuUpdated, setMenuUpdated] = useState(false);
   const prevStatus = useRef<string | null>(null);
+  const prevItemCount = useRef<number>(0);
 
-  const fetchMenu = useCallback(async (forceRefresh = false) => {
+  const fetchMenu = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      const res = await fetch(`${API_BASE}/menu/public/${slug}?t=${Date.now()}`);
+      const res = await fetch(`${API_BASE}/menu/public/${slug}?t=${Date.now()}`, {
+        cache: 'no-store',
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+        },
+      });
       const data = await res.json();
       if (data.success) {
         const newCategories = data.data || [];
+        
+        const totalItems = newCategories.reduce((sum: number, c: any) => sum + (c.items?.length || 0), 0);
+        if (prevItemCount.current !== 0 && totalItems !== prevItemCount.current) {
+          setMenuUpdated(true);
+          setTimeout(() => setMenuUpdated(false), 3000);
+        }
+        prevItemCount.current = totalItems;
+        
         setCategories(newCategories);
         setRestaurant(data.restaurant);
         setLastUpdated(new Date());
         
-        if (newCategories.length > 0) {
-          if (forceRefresh) {
-            setSelectedCategory(newCategories[0].id);
-          } else {
-            setSelectedCategory(prev => {
-              if (!prev) return newCategories[0].id;
-              const exists = newCategories.some(c => c.id === prev);
-              return exists ? prev : newCategories[0].id;
-            });
-          }
-        }
+        setSelectedCategory(prev => {
+          if (!prev) return newCategories[0]?.id || null;
+          const exists = newCategories.some(c => c.id === prev);
+          return exists ? prev : newCategories[0]?.id || null;
+        });
       } else {
         setError(data.error || 'Failed to load menu');
       }
@@ -275,9 +286,15 @@ export function CustomerOrderPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-purple-950 to-slate-950 relative">
+      {menuUpdated && (
+        <div className="fixed top-0 left-0 right-0 z-[60] bg-gradient-to-r from-emerald-500 to-teal-500 p-3 flex items-center justify-center gap-2 animate-bounce">
+          <Sparkles className="w-5 h-5 text-white" />
+          <span className="text-white font-bold">Menu Updated!</span>
+        </div>
+      )}
       {step === 'menu' && (
         <>
-          <header className="sticky top-0 z-50 backdrop-blur-2xl bg-black/20 border-b border-white/10">
+          <header className="sticky top-0 z-50 backdrop-blur-2xl bg-black/20 border-b border-white/10" style={menuUpdated ? { marginTop: '48px' } : {}}>
             <div className="max-w-lg mx-auto px-4 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
