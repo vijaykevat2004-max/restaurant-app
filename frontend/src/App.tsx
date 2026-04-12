@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore, useBranchStore } from './stores';
 import { api } from './api/client';
@@ -16,23 +16,35 @@ import { QRCodePage } from './pages/QRCodePage';
 import { QRMenuPage } from './pages/QRMenuPage';
 import { CustomerOrderPage } from './pages/CustomerOrderPage';
 
-function LoadingSpinner() {
+function LoadingScreen() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-purple-950 to-slate-950 flex items-center justify-center">
+    <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%)' }}>
       <div className="text-center">
-        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-rose-500 via-pink-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-pink-500/30 animate-bounce">
-          <span className="text-2xl">🍽️</span>
+        <div className="w-20 h-20 mx-auto mb-6 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #f43f5e, #ec4899, #f43f5e)' }}>
+          <span className="text-3xl">🍽️</span>
         </div>
-        <div className="flex justify-center gap-1">
-          {[0, 1, 2, 3, 4].map((i) => (
-            <div
-              key={i}
-              className="w-2 h-2 rounded-full bg-gradient-to-r from-pink-500 to-violet-500 animate-bounce"
-              style={{ animationDelay: `${i * 0.1}s` }}
-            />
-          ))}
+        <p className="text-white/80 text-lg font-medium">Loading...</p>
+      </div>
+    </div>
+  );
+}
+
+function ErrorScreen({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%)' }}>
+      <div className="text-center max-w-md mx-auto px-4">
+        <div className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center bg-red-500/20">
+          <span className="text-2xl">⚠️</span>
         </div>
-        <p className="text-white/60 mt-4 font-medium">Loading...</p>
+        <h2 className="text-xl font-bold text-white mb-2">Something went wrong</h2>
+        <p className="text-white/60 mb-6">{message}</p>
+        <button
+          onClick={onRetry}
+          className="px-6 py-3 rounded-xl font-semibold text-white"
+          style={{ background: 'linear-gradient(135deg, #8b5cf6, #a855f7)' }}
+        >
+          Try Again
+        </button>
       </div>
     </div>
   );
@@ -42,7 +54,7 @@ function ProtectedRoute({ children, roles }: { children: React.ReactNode; roles?
   const { user, isAuthenticated, isLoading } = useAuthStore();
 
   if (isLoading) {
-    return <LoadingSpinner />;
+    return <LoadingScreen />;
   }
 
   if (!isAuthenticated || !user) {
@@ -57,35 +69,65 @@ function ProtectedRoute({ children, roles }: { children: React.ReactNode; roles?
 }
 
 function App() {
-  const { checkAuth, isLoading } = useAuthStore();
+  const { checkAuth, isLoading: authLoading } = useAuthStore();
   const { setBranches, selectBranch, selectedBranchId } = useBranchStore();
+  const [error, setError] = useState<string | null>(null);
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
-    checkAuth().catch(() => {
-      // Ignore auth check errors
-    });
+    let mounted = true;
+    
+    const init = async () => {
+      try {
+        await checkAuth();
+        if (mounted) {
+          setInitialized(true);
+        }
+      } catch (err) {
+        console.error('Auth check failed:', err);
+        if (mounted) {
+          setInitialized(true);
+        }
+      }
+    };
+
+    init();
+    
+    return () => {
+      mounted = false;
+    };
   }, [checkAuth]);
 
   useEffect(() => {
-    if (!isLoading) {
-      api.getBranches()
-        .then((branches) => {
-          setBranches(branches || []);
-          if (branches?.length > 0 && !selectedBranchId) {
-            selectBranch(branches[0].id);
-          }
-        })
-        .catch(() => {
-          setBranches([]);
-        });
-    }
-  }, [isLoading, setBranches, selectBranch, selectedBranchId]);
+    if (!initialized || authLoading) return;
+
+    const loadBranches = async () => {
+      try {
+        const branches = await api.getBranches();
+        setBranches(branches || []);
+        if (branches?.length > 0 && !selectedBranchId) {
+          selectBranch(branches[0].id);
+        }
+      } catch (err) {
+        console.error('Failed to load branches:', err);
+        setBranches([]);
+      }
+    };
+
+    loadBranches();
+  }, [initialized, authLoading, setBranches, selectBranch, selectedBranchId]);
+
+  const handleRetry = () => {
+    setError(null);
+    window.location.reload();
+  };
+
+  if (error) {
+    return <ErrorScreen message={error} onRetry={handleRetry} />;
+  }
 
   return (
-    <div className="relative min-h-screen">
-      {/* Background gradient */}
-      <div className="fixed inset-0 bg-gradient-to-br from-indigo-950 via-purple-950 to-slate-950" />
-      
+    <div className="relative min-h-screen" style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%)' }}>
       <div className="relative z-10">
         <Routes>
           <Route path="/login" element={<LoginPage />} />
