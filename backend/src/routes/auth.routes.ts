@@ -87,6 +87,63 @@ router.post('/register', async (req: AuthenticatedRequest, res: Response) => {
       return;
     }
 
+    // Auto-create demo menu for new restaurant
+    try {
+      const demoMenu = [
+        { name: 'Starters', items: [
+          { name: 'Paneer Tikka', price: 249, description: 'Grilled cottage cheese marinated in spices', isVeg: true },
+          { name: 'Crispy Corn', price: 179, description: 'Golden fried corn kernels with spicy seasoning', isVeg: true },
+          { name: 'Hara Bhara Kebab', price: 199, description: 'Spinach and green pea patties', isVeg: true },
+        ]},
+        { name: 'Main Course', items: [
+          { name: 'Butter Chicken', price: 349, description: 'Creamy tomato curry with tender chicken', isVeg: false },
+          { name: 'Dal Makhani', price: 229, description: 'Slow-cooked black lentils in butter and cream', isVeg: true },
+          { name: 'Biryani Hyderabadi', price: 399, description: 'Fragrant rice with aromatic spices', isVeg: true },
+          { name: 'Paneer Butter Masala', price: 279, description: 'Cottage cheese in rich tomato gravy', isVeg: true },
+        ]},
+        { name: 'Breads', items: [
+          { name: 'Butter Naan', price: 59, description: 'Soft leavened bread brushed with butter', isVeg: true },
+          { name: 'Garlic Roti', price: 49, description: 'Whole wheat flatbread with garlic', isVeg: true },
+          { name: 'Cheese Kulcha', price: 89, description: 'Stuffed bread with melted cheese', isVeg: true },
+        ]},
+        { name: 'Beverages', items: [
+          { name: 'Mango Lassi', price: 99, description: 'Chilled yogurt drink with fresh mango', isVeg: true },
+          { name: 'Masala Chai', price: 39, description: 'Traditional spiced Indian tea', isVeg: true },
+          { name: 'Fresh Lime Soda', price: 69, description: 'Refreshing lime with soda water', isVeg: true },
+        ]},
+        { name: 'Desserts', items: [
+          { name: 'Gulab Jamun', price: 99, description: 'Sweet milk dumplings in sugar syrup', isVeg: true },
+          { name: 'Rasmalai', price: 129, description: 'Soft cheese patties in sweet saffron milk', isVeg: true },
+          { name: 'Ice Cream Sundae', price: 149, description: 'Vanilla ice cream with chocolate sauce', isVeg: true },
+        ]},
+      ];
+
+      for (let i = 0; i < demoMenu.length; i++) {
+        const categoryId = `cat-${Date.now()}-${i}`;
+        await supabaseAdmin.from('MenuCategory').insert({
+          id: categoryId,
+          name: demoMenu[i].name,
+          sortOrder: i,
+          restaurantId,
+        });
+
+        for (const item of demoMenu[i].items) {
+          await supabaseAdmin.from('MenuItem').insert({
+            id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            categoryId,
+            name: item.name,
+            description: item.description,
+            price: item.price,
+            isAvailable: true,
+            isVeg: item.isVeg,
+          });
+        }
+      }
+      console.log('Demo menu created for:', restaurantId);
+    } catch (menuError) {
+      console.error('Menu creation error:', menuError);
+    }
+
     console.log('Registration success for:', body.ownerEmail);
 
     res.json({

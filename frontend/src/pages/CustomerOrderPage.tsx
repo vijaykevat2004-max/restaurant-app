@@ -87,25 +87,31 @@ export function CustomerOrderPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const pollInterval = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const res = await fetch(`https://backend-vijay19.vercel.app/api/v1/menu/public/${slug}`);
-        const data = await res.json();
-        if (data.success) {
-          setCategories(data.data || []);
-          setRestaurant(data.restaurant);
-          if (data.data?.length > 0) {
-            setSelectedCategory(data.data[0].id);
-          }
+  const fetchMenu = async () => {
+    try {
+      const res = await fetch(`https://backend-vijay19.vercel.app/api/v1/menu/public/${slug}`);
+      const data = await res.json();
+      if (data.success) {
+        setCategories(data.data || []);
+        setRestaurant(data.restaurant);
+        if (data.data?.length > 0 && !selectedCategory) {
+          setSelectedCategory(data.data[0].id);
         }
-      } catch (error) {
-        console.error('Failed to fetch menu:', error);
-      } finally {
-        setIsLoading(false);
       }
+    } catch (error) {
+      console.error('Failed to fetch menu:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMenu();
+    // Auto-refresh every 10 seconds for live updates
+    pollInterval.current = setInterval(fetchMenu, 10000);
+    return () => {
+      if (pollInterval.current) clearInterval(pollInterval.current);
     };
-    fetchData();
   }, [slug]);
 
   useEffect(() => {
