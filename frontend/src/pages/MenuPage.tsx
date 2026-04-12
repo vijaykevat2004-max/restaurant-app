@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Plus, Edit2, Trash2, X, Check, UtensilsCrossed } from 'lucide-react';
 import { api } from '../api/client';
-import { useAuthStore } from '../stores';
 import type { MenuCategory, MenuItem } from '../types';
 import { formatCurrency } from '../utils/currency';
 
@@ -17,7 +16,6 @@ const CATEGORY_GRADIENTS = [
 ];
 
 export function MenuPage() {
-  const { token } = useAuthStore();
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
@@ -26,34 +24,31 @@ export function MenuPage() {
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
 
-  const fetchMenu = async () => {
-    if (!token) {
-      setIsLoading(false);
-      return;
-    }
+  const fetchMenu = useCallback(async () => {
+    setIsLoading(true);
     try {
       const menu = await api.getMenu();
       setCategories(menu);
-      if (menu.length > 0 && !selectedCategoryId) {
-        setSelectedCategoryId(menu[0].id);
+      if (menu.length > 0) {
+        setSelectedCategoryId(prev => prev || menu[0].id);
       }
     } catch (error) {
       console.error('Failed to fetch menu:', error);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchMenu();
-  }, [token]);
+  }, [fetchMenu]);
 
   const handleDeleteCategory = async (id: string) => {
     if (!confirm('Delete this category and all its items?')) return;
     try {
       await fetch(`${import.meta.env.VITE_API_URL}/menu/categories/${id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${api.getToken?.()}` },
       });
       fetchMenu();
     } catch (error) {
@@ -67,7 +62,7 @@ export function MenuPage() {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${api.getToken?.()}`,
         },
         body: JSON.stringify({ isAvailable: !item.isAvailable }),
       });
@@ -78,15 +73,11 @@ export function MenuPage() {
   };
 
   const handleDeleteItem = async (itemId: string) => {
-    if (!token) {
-      alert('Please login again');
-      return;
-    }
     if (!confirm('Delete this item?')) return;
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL}/menu/items/${itemId}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${api.getToken?.()}` },
       });
       const data = await res.json();
       if (!data.success) {
@@ -102,7 +93,6 @@ export function MenuPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-purple-950 to-slate-950 p-6">
-      {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center shadow-lg shadow-cyan-500/30">
@@ -132,7 +122,6 @@ export function MenuPage() {
         </div>
       </div>
 
-      {/* Content */}
       {isLoading ? (
         <div className="glass-card-vibrant p-8 animate-pulse">
           <div className="h-64 bg-white/5 rounded-2xl" />
@@ -145,7 +134,7 @@ export function MenuPage() {
           <p className="text-white/50 text-lg font-semibold">No categories yet</p>
           <button
             onClick={() => setShowCategoryModal(true)}
-            className="btn-vibrant btn-emerald mt-4"
+            className="mt-4 px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold"
           >
             Create Category
           </button>
@@ -161,7 +150,7 @@ export function MenuPage() {
                   </div>
                   <div>
                     <h2 className="text-xl font-bold text-white">{category.name}</h2>
-                    <p className="text-sm text-white/50">{category.items.length} items</p>
+                    <p className="text-sm text-white/50">{category.items?.length || 0} items</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -181,7 +170,7 @@ export function MenuPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {category.items.map((item) => (
+                {(category.items || []).map((item) => (
                   <div
                     key={item.id}
                     className={`p-4 rounded-2xl bg-white/5 border border-white/10 transition-all ${
@@ -239,7 +228,6 @@ export function MenuPage() {
         </div>
       )}
 
-      {/* Modals */}
       {showCategoryModal && (
         <CategoryModal
           category={editingCategory}
@@ -282,7 +270,7 @@ function CategoryModal({
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
+            Authorization: `Bearer ${api.getToken?.()}`,
           },
           body: JSON.stringify({ name }),
         });
@@ -325,7 +313,7 @@ function CategoryModal({
             <button type="button" onClick={onClose} className="flex-1 py-3 rounded-xl bg-white/10 text-white/60 hover:bg-white/20 transition-all">
               Cancel
             </button>
-            <button type="submit" disabled={isSubmitting} className="flex-1 btn-vibrant btn-emerald">
+            <button type="submit" disabled={isSubmitting} className="flex-1 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold disabled:opacity-50">
               {isSubmitting ? 'Saving...' : category ? 'Save' : 'Create'}
             </button>
           </div>
@@ -366,17 +354,15 @@ function ItemModal({
       const formData = new FormData();
       formData.append('image', file);
 
-      const token = localStorage.getItem('token');
       const res = await fetch(`${import.meta.env.VITE_API_URL}/upload`, {
         method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: { Authorization: `Bearer ${api.getToken?.()}` },
         body: formData,
       });
 
       const data = await res.json();
       if (data.success && data.data?.url) {
         setImageUrl(data.data.url);
-        alert('Image uploaded!');
       } else {
         alert('Upload failed: ' + (data.error || 'Unknown error'));
       }
@@ -408,7 +394,7 @@ function ItemModal({
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
+            Authorization: `Bearer ${api.getToken?.()}`,
           },
           body: JSON.stringify(data),
         });
@@ -511,7 +497,7 @@ function ItemModal({
             <button type="button" onClick={onClose} className="flex-1 py-3 rounded-xl bg-white/10 text-white/60 hover:bg-white/20 transition-all">
               Cancel
             </button>
-            <button type="submit" disabled={isSubmitting} className="flex-1 btn-vibrant btn-emerald">
+            <button type="submit" disabled={isSubmitting} className="flex-1 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold disabled:opacity-50">
               {isSubmitting ? 'Saving...' : item ? 'Save' : 'Add Item'}
             </button>
           </div>
