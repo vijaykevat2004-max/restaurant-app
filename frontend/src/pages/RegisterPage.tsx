@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Store, Mail, Lock, User, Phone, MapPin, ArrowRight, Check, Sparkles } from 'lucide-react';
+import { Store, Mail, Lock, User, ArrowRight, Check, Sparkles } from 'lucide-react';
 
 const STEPS = ['Restaurant Info', 'Owner Details', 'Complete'];
 
@@ -12,10 +12,8 @@ export function RegisterPage() {
 
   // Form data
   const [restaurantName, setRestaurantName] = useState('');
-  const [restaurantAddress, setRestaurantAddress] = useState('');
   const [ownerName, setOwnerName] = useState('');
   const [ownerEmail, setOwnerEmail] = useState('');
-  const [ownerPhone, setOwnerPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
@@ -54,10 +52,8 @@ export function RegisterPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           restaurantName,
-          restaurantAddress,
           ownerName,
           ownerEmail,
-          ownerPhone,
           password,
         }),
       });
@@ -136,20 +132,6 @@ export function RegisterPage() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-white/60 mb-2">Restaurant Address</label>
-                <div className="relative">
-                  <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
-                  <input
-                    type="text"
-                    value={restaurantAddress}
-                    onChange={(e) => setRestaurantAddress(e.target.value)}
-                    placeholder="e.g., 123 Main Street, Mumbai"
-                    className="input-vibrant pl-12"
-                  />
-                </div>
-              </div>
-
               <button
                 onClick={handleNext}
                 className="w-full py-4 rounded-2xl bg-gradient-to-r from-orange-500 to-pink-500 text-white font-bold text-lg hover:shadow-lg hover:shadow-pink-500/30 transition-all flex items-center justify-center gap-2"
@@ -186,20 +168,6 @@ export function RegisterPage() {
                     value={ownerEmail}
                     onChange={(e) => setOwnerEmail(e.target.value)}
                     placeholder="owner@restaurant.com"
-                    className="input-vibrant pl-12"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-white/60 mb-2">Phone Number</label>
-                <div className="relative">
-                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
-                  <input
-                    type="tel"
-                    value={ownerPhone}
-                    onChange={(e) => setOwnerPhone(e.target.value)}
-                    placeholder="+91 98765 43210"
                     className="input-vibrant pl-12"
                   />
                 </div>

@@ -17,7 +17,6 @@ const registerSchema = z.object({
   restaurantAddress: z.string().optional(),
   ownerName: z.string().min(1),
   ownerEmail: z.string().email(),
-  ownerPhone: z.string().optional(),
   password: z.string().min(6),
 });
 
@@ -43,34 +42,50 @@ router.post('/register', async (req: AuthenticatedRequest, res: Response) => {
     const slug = body.restaurantName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const restaurantId = `rest-${Date.now()}`;
 
-    await supabaseAdmin.from('Restaurant').insert({
+    const { error: restaurantError } = await supabaseAdmin.from('Restaurant').insert({
       id: restaurantId,
       name: body.restaurantName,
       slug,
-      address: body.restaurantAddress || null,
     });
 
+    if (restaurantError) {
+      console.error('Restaurant insert error:', restaurantError);
+      res.status(500).json({ success: false, error: 'Failed to create restaurant: ' + restaurantError.message });
+      return;
+    }
+
     const branchId = `branch-${Date.now()}`;
-    await supabaseAdmin.from('Branch').insert({
+    const { error: branchError } = await supabaseAdmin.from('Branch').insert({
       id: branchId,
       name: 'Main Branch',
       restaurantId,
       address: body.restaurantAddress || null,
     });
 
+    if (branchError) {
+      console.error('Branch insert error:', branchError);
+      res.status(500).json({ success: false, error: 'Failed to create branch: ' + branchError.message });
+      return;
+    }
+
     const passwordHash = await bcrypt.hash(body.password, 10);
     const userId = `user-${Date.now()}`;
 
-    await supabaseAdmin.from('User').insert({
+    const { error: userError } = await supabaseAdmin.from('User').insert({
       id: userId,
       email: body.ownerEmail,
       name: body.ownerName,
-      phone: body.ownerPhone || null,
       passwordHash,
       role: 'OWNER',
       restaurantId,
       branchId,
     });
+
+    if (userError) {
+      console.error('User insert error:', userError);
+      res.status(500).json({ success: false, error: 'Failed to create user: ' + userError.message });
+      return;
+    }
 
     console.log('Registration success for:', body.ownerEmail);
 
