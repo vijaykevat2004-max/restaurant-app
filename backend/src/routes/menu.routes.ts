@@ -131,6 +131,28 @@ router.post('/public/orders', async (req: Request, res: Response) => {
   }
 });
 
+router.get('/public/orders/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const { data: order, error } = await supabaseAdmin
+      .from('Order')
+      .select('id, orderNumber, status, total, customerName, tableNumber, createdAt')
+      .eq('id', id)
+      .single();
+
+    if (error || !order) {
+      res.status(404).json({ success: false, error: 'Order not found' });
+      return;
+    }
+
+    res.json({ success: true, data: order });
+  } catch (error: any) {
+    console.error('Error fetching order:', error);
+    res.status(500).json({ success: false, error: error.message || 'Internal server error' });
+  }
+});
+
 router.use(authenticate);
 
 router.get('/', async (req: AuthenticatedRequest, res: Response) => {

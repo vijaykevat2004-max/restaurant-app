@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   Utensils,
@@ -23,9 +23,13 @@ import {
   X,
   Timer,
   RefreshCw,
+  Bell,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import type { MenuCategory } from '../types';
 import { formatCurrency } from '../utils/currency';
+import { playReadySound } from '../utils/sounds';
 
 interface CartItem {
   menuItemId: string;
@@ -74,6 +78,10 @@ export function CustomerOrderPage() {
   const [order, setOrder] = useState<OrderInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [orderStatus, setOrderStatus] = useState<string | null>(null);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [showStatusBanner, setShowStatusBanner] = useState(false);
+  const prevStatus = useRef<string | null>(null);
 
   const fetchMenu = useCallback(async () => {
     try {
@@ -101,6 +109,36 @@ export function CustomerOrderPage() {
     const interval = setInterval(fetchMenu, 15000);
     return () => clearInterval(interval);
   }, [fetchMenu]);
+
+  useEffect(() => {
+    if (!order) return;
+
+    const checkOrderStatus = async () => {
+      try {
+        const res = await fetch(`https://backend-vijay19.vercel.app/api/v1/menu/public/orders/${order.id}`);
+        const data = await res.json();
+        if (data.success && data.data) {
+          const newStatus = data.data.status;
+          if (newStatus !== prevStatus.current) {
+            prevStatus.current = newStatus;
+            setOrderStatus(newStatus);
+            
+            if (['READY', 'SERVED'].includes(newStatus) && soundEnabled) {
+              playReadySound();
+              setShowStatusBanner(true);
+              setTimeout(() => setShowStatusBanner(false), 5000);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to check order status:', err);
+      }
+    };
+
+    const interval = setInterval(checkOrderStatus, 5000);
+    checkOrderStatus();
+    return () => clearInterval(interval);
+  }, [order, soundEnabled]);
 
   const addToCart = (item: MenuCategory['items'][0]) => {
     const existing = cart.find((c) => c.menuItemId === item.id);
@@ -440,7 +478,16 @@ export function CustomerOrderPage() {
 
       {step === 'success' && order && (
         <div className="min-h-screen flex flex-col items-center justify-center px-4">
-          <div className="text-center">
+          {showStatusBanner && (
+            <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-emerald-500 to-teal-500 p-4 flex items-center justify-center gap-3 animate-bounce">
+              <Bell className="w-6 h-6 text-white" />
+              <span className="text-white font-bold text-lg">
+                {orderStatus === 'READY' ? '🎉 Your food is READY!' : 'Your order is being served!'}
+              </span>
+            </div>
+          )}
+          
+          <div className="text-center mt-8">
             <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 flex items-center justify-center animate-bounce">
               <Check className="w-12 h-12 text-white" />
             </div>
@@ -453,7 +500,28 @@ export function CustomerOrderPage() {
               <p className="text-5xl font-bold text-amber-400">#{order.orderNumber}</p>
             </div>
 
+            {orderStatus && (
+              <div className={`inline-block px-4 py-2 rounded-full text-sm font-bold mb-4 ${
+                orderStatus === 'PENDING' ? 'bg-yellow-500/20 text-yellow-400' :
+                orderStatus === 'CONFIRMED' ? 'bg-blue-500/20 text-blue-400' :
+                orderStatus === 'PREPARING' ? 'bg-orange-500/20 text-orange-400' :
+                orderStatus === 'READY' ? 'bg-emerald-500/20 text-emerald-400' :
+                'bg-gray-500/20 text-gray-400'
+              }`}>
+                Status: {orderStatus}
+              </div>
+            )}
+
             <p className="text-white/60 mb-8">Your food is being prepared!</p>
+
+            <div className="flex items-center justify-center gap-4 mb-6">
+              <button
+                onClick={() => setSoundEnabled(!soundEnabled)}
+                className={`p-3 rounded-xl ${soundEnabled ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/10 text-white/40'}`}
+              >
+                {soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+              </button>
+            </div>
 
             <button
               onClick={handleNewOrder}
