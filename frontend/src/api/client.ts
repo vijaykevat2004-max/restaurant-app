@@ -185,8 +185,9 @@ class ApiClient {
   }
 
   async updateOrderStatus(orderId: string, status: string): Promise<Order> {
-    const response = await this.request<ApiResponse<Order>>(`/orders/${orderId}/status?status=${status}`, {
+    const response = await this.request<ApiResponse<Order>>(`/orders/${orderId}/status`, {
       method: 'PATCH',
+      body: JSON.stringify({ status }),
     });
     if (!response.data) {
       throw new Error('Failed to update order');

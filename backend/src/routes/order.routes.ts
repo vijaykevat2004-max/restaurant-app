@@ -36,9 +36,14 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
 
     if (error) throw error;
 
+    const parsedOrders = (orders || []).map((order: any) => ({
+      ...order,
+      items: typeof order.items === 'string' ? JSON.parse(order.items) : order.items,
+    }));
+
     res.json({
       success: true,
-      data: orders || [],
+      data: parsedOrders,
       pagination: {
         page: Number(page),
         limit: Number(limit),
@@ -65,10 +70,84 @@ router.get('/active', async (req: AuthenticatedRequest, res: Response) => {
       .eq('restaurantId', req.user.restaurantId)
       .in('status', ['PENDING', 'CONFIRMED', 'PREPARING', 'READY'])
       .order('createdAt', { ascending: true });
+    
+    const parsedOrders = (orders || []).map((order: any) => ({
+      ...order,
+      items: typeof order.items === 'string' ? JSON.parse(order.items) : order.items,
+    }));
 
-    res.json({ success: true, data: orders || [] });
+    res.json({ success: true, data: parsedOrders });
   } catch (error: any) {
     console.error('Error fetching active orders:', error);
+    res.status(500).json({ success: false, error: error.message || 'Internal server error' });
+  }
+});
+
+router.post('/', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, error: 'Not authenticated' });
+      return;
+    }
+
+    const { items, branchId, customerName, tableNumber } = req.body;
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      res.status(400).json({ success: false, error: 'No items provided' });
+      return;
+    }
+
+    const menuItemIds = items.map((i: any) => i.menuItemId);
+    const { data: menuItems } = await supabaseAdmin
+      .from('MenuItem')
+      .select('*')
+      .in('id', menuItemIds);
+
+    let total = 0;
+    const orderItems = items.map((cartItem: { menuItemId: string; quantity: number }) => {
+      const menuItem = menuItems?.find((i: any) => i.id === cartItem.menuItemId);
+      if (!menuItem) throw new Error(`Item not found: ${cartItem.menuItemId}`);
+      const subtotal = Number(menuItem.price) * cartItem.quantity;
+      total += subtotal;
+      return {
+        menuItemId: menuItem.id,
+        name: menuItem.name,
+        quantity: cartItem.quantity,
+        price: Number(menuItem.price),
+        subtotal,
+      };
+    });
+
+    const orderNumber = Math.floor(Math.random() * 9000) + 1000;
+
+    const { data: order, error } = await supabaseAdmin
+      .from('Order')
+      .insert({
+        orderNumber,
+        total,
+        subtotal: total,
+        tax: 0,
+        items: JSON.stringify(orderItems),
+        status: 'PENDING',
+        branchId: branchId || null,
+        restaurantId: req.user.restaurantId,
+        customerName: customerName || 'Counter Order',
+        tableNumber: tableNumber || null,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.status(201).json({
+      success: true,
+      data: {
+        ...order,
+        items: orderItems,
+      },
+    });
+  } catch (error: any) {
+    console.error('Error creating order:', error);
     res.status(500).json({ success: false, error: error.message || 'Internal server error' });
   }
 });
@@ -97,7 +176,7 @@ router.get('/stats', async (req: AuthenticatedRequest, res: Response) => {
       data: {
         todayOrders: totalOrders,
         todayRevenue: totalRevenue,
-        pendingOrders: orders?.filter((o: any) => o.status === 'PENDING').length || 0,
+        pendingOrders: orders?.filter((o: any) => ['PENDING', 'CONFIRMED', 'PREPARING'].includes(o.status)).length || 0,
       },
     });
   } catch (error: any) {
@@ -125,7 +204,12 @@ router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
       return;
     }
 
-    res.json({ success: true, data: order });
+    const parsedOrder = {
+      ...order,
+      items: typeof order.items === 'string' ? JSON.parse(order.items) : order.items,
+    };
+
+    res.json({ success: true, data: parsedOrder });
   } catch (error: any) {
     console.error('Error fetching order:', error);
     res.status(500).json({ success: false, error: error.message || 'Internal server error' });
