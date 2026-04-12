@@ -12,6 +12,7 @@ import type {
   MenuItem,
   CartItem,
 } from '../types';
+import { parseOrders, parseOrder } from '../utils/order';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api/v1';
 
@@ -140,7 +141,7 @@ class ApiClient {
     const query = searchParams.toString();
     const response = await this.request<ApiResponse<Order[]>>(`/orders${query ? `?${query}` : ''}`);
     return {
-      orders: response.data || [],
+      orders: parseOrders(response.data || []),
       pagination: (response as any)?.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 },
     };
   }
@@ -148,7 +149,7 @@ class ApiClient {
   async getActiveOrders(branchId?: string): Promise<Order[]> {
     const query = branchId ? `?branchId=${branchId}` : '';
     const response = await this.request<ApiResponse<Order[]>>(`/orders/active${query}`);
-    return response.data || [];
+    return parseOrders(response.data || []);
   }
 
   async getOrderStats(branchId?: string): Promise<OrderStats> {
@@ -165,7 +166,7 @@ class ApiClient {
     if (!response.data) {
       throw new Error('Order not found');
     }
-    return response.data;
+    return parseOrder(response.data);
   }
 
   async createOrder(items: CartItem[], branchId: string): Promise<Order> {
@@ -176,7 +177,7 @@ class ApiClient {
     if (!response.data) {
       throw new Error('Failed to create order');
     }
-    return response.data;
+    return parseOrder(response.data);
   }
 
   async updateOrderStatus(orderId: string, status: string): Promise<Order> {
@@ -186,7 +187,7 @@ class ApiClient {
     if (!response.data) {
       throw new Error('Failed to update order');
     }
-    return response.data;
+    return parseOrder(response.data);
   }
 
   async cancelOrder(orderId: string): Promise<Order> {
@@ -196,7 +197,7 @@ class ApiClient {
     if (!response.data) {
       throw new Error('Failed to cancel order');
     }
-    return response.data;
+    return parseOrder(response.data);
   }
 
   async getMenu(): Promise<MenuCategory[]> {
