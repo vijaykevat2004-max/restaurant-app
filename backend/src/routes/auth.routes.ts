@@ -87,46 +87,6 @@ router.post('/register', async (req: AuthenticatedRequest, res: Response) => {
       return;
     }
 
-    // Auto-seed demo menu for new restaurant
-    try {
-      const { data: demoCategories } = await supabaseAdmin
-        .from('MenuCategory')
-        .select('*, items:MenuItem(*)')
-        .eq('restaurantId', 'demo-restaurant-id');
-
-      if (demoCategories && demoCategories.length > 0) {
-        for (const category of demoCategories) {
-          const newCategoryId = `cat-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-          
-          await supabaseAdmin.from('MenuCategory').insert({
-            id: newCategoryId,
-            name: category.name,
-            sortOrder: category.sortOrder,
-            restaurantId,
-          });
-
-          if (category.items && category.items.length > 0) {
-            for (const item of category.items) {
-              await supabaseAdmin.from('MenuItem').insert({
-                id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                categoryId: newCategoryId,
-                name: item.name,
-                description: item.description,
-                price: item.price,
-                imageUrl: item.imageUrl,
-                isAvailable: true,
-                isVeg: item.isVeg || false,
-              });
-            }
-          }
-        }
-        console.log('Menu seeded for restaurant:', restaurantId);
-      }
-    } catch (seedError) {
-      console.error('Menu seeding error:', seedError);
-      // Don't fail registration if seeding fails
-    }
-
     console.log('Registration success for:', body.ownerEmail);
 
     res.json({
