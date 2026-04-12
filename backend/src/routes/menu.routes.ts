@@ -271,15 +271,25 @@ router.post('/items', requireOwnerOrManager, async (req: AuthenticatedRequest, r
 
     const { categoryId, name, description, price, imageUrl, isAvailable = true } = req.body;
 
+    const { data: category } = await supabaseAdmin
+      .from('MenuCategory')
+      .select('restaurantId')
+      .eq('id', categoryId)
+      .single();
+
+    const restaurantId = category?.restaurantId || req.user.restaurantId;
+
     const { data: item, error } = await supabaseAdmin
       .from('MenuItem')
       .insert({
+        id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         categoryId,
         name,
         description,
         price,
         imageUrl,
         isAvailable,
+        restaurantId,
       })
       .select()
       .single();
@@ -302,8 +312,9 @@ router.patch('/items/:id', requireOwnerOrManager, async (req: AuthenticatedReque
 
     const { data: item, error } = await supabaseAdmin
       .from('MenuItem')
-      .update(req.body)
+      .update({ ...req.body, updatedAt: new Date().toISOString() })
       .eq('id', req.params.id)
+      .eq('restaurantId', req.user.restaurantId)
       .select()
       .single();
 

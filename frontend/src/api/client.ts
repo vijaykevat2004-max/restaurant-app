@@ -206,7 +206,7 @@ class ApiClient {
   }
 
   async getMenu(): Promise<MenuCategory[]> {
-    const response = await this.request<ApiResponse<MenuCategory[]>>('/menu');
+    const response = await this.request<ApiResponse<MenuCategory[]>>(`/menu?t=${Date.now()}`);
     return response.data || [];
   }
 
