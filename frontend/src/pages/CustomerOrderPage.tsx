@@ -178,11 +178,15 @@ export function CustomerOrderPage() {
         body: JSON.stringify({ restaurantId, orderId, amount }),
       });
       const data = await res.json();
-      if (data.success) {
+      if (data.success && data.data) {
         setPaymentData(data.data);
+      } else {
+        // No UPI configured, will show "pay at counter" option
+        setPaymentData(null);
       }
     } catch (error) {
       console.error('Failed to create payment:', error);
+      setPaymentData(null);
     }
   };
 
@@ -529,43 +533,71 @@ export function CustomerOrderPage() {
         </div>
       )}
 
-      {step === 'payment' && paymentData && (
+      {step === 'payment' && (
         <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8 relative z-10">
-          <div className="backdrop-blur-2xl bg-white/10 rounded-[2rem] p-8 max-w-sm w-full text-center border border-white/20 relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-rose-500/10 via-pink-500/10 to-fuchsia-500/10" />
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-rose-500 via-pink-500 to-fuchsia-500" />
-            
-            <div className="relative">
-              <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-rose-500 via-pink-500 to-fuchsia-500 flex items-center justify-center shadow-2xl shadow-pink-500/50 animate-bounce">
-                <QrCode className="w-10 h-10 text-white" />
-              </div>
-              <h2 className="text-2xl font-bold bg-gradient-to-r from-rose-400 to-fuchsia-400 bg-clip-text text-transparent mb-2">Scan & Pay</h2>
-              <p className="text-white/60 mb-6">Pay {formatCurrency(paymentData.amount)} via UPI</p>
+          {paymentData ? (
+            <div className="backdrop-blur-2xl bg-white/10 rounded-[2rem] p-8 max-w-sm w-full text-center border border-white/20 relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-rose-500/10 via-pink-500/10 to-fuchsia-500/10" />
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-rose-500 via-pink-500 to-fuchsia-500" />
               
-              <div className="bg-white p-4 rounded-2xl inline-block mb-6 shadow-2xl">
-                <img src={paymentData.qrCodeUrl} alt="QR Code" className="w-56 h-56 mx-auto" />
+              <div className="relative">
+                <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-rose-500 via-pink-500 to-fuchsia-500 flex items-center justify-center shadow-2xl shadow-pink-500/50 animate-bounce">
+                  <QrCode className="w-10 h-10 text-white" />
+                </div>
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-rose-400 to-fuchsia-400 bg-clip-text text-transparent mb-2">Scan & Pay</h2>
+                <p className="text-white/60 mb-6">Pay {formatCurrency(paymentData.amount)} via UPI</p>
+                
+                <div className="bg-white p-4 rounded-2xl inline-block mb-6 shadow-2xl">
+                  <img src={paymentData.qrCodeUrl} alt="QR Code" className="w-56 h-56 mx-auto" />
+                </div>
+                
+                <div className="bg-white/10 backdrop-blur-xl rounded-xl p-4 mb-6 border border-white/20">
+                  <p className="text-sm text-white/50">UPI ID</p>
+                  <p className="text-rose-300 font-mono font-bold text-lg">{paymentData.upiId}</p>
+                </div>
+                
+                <div className="flex items-center justify-center gap-2 text-amber-400 mb-4 animate-pulse">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>Waiting for payment...</span>
+                </div>
+                
+                <button
+                  onClick={handlePaymentConfirm}
+                  className="w-full px-6 py-5 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 rounded-2xl text-white font-bold shadow-xl shadow-emerald-500/40 hover:shadow-emerald-500/60 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                >
+                  <Check className="w-6 h-6" />
+                  I've Completed Payment
+                </button>
+                <p className="text-xs text-white/40 mt-3">Pay via any UPI app, then click button</p>
+              </div>
+            </div>
+          ) : (
+            <div className="backdrop-blur-2xl bg-white/10 rounded-[2rem] p-8 max-w-sm w-full text-center border border-white/20">
+              <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-2xl">
+                <Check className="w-10 h-10 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-2">Order Placed!</h2>
+              <p className="text-white/60 mb-6">Your order has been sent to the kitchen.</p>
+              
+              <div className="bg-white/10 rounded-xl p-4 mb-6">
+                <p className="text-sm text-white/50">Order Total</p>
+                <p className="text-3xl font-bold text-emerald-400">{formatCurrency(getCartTotal())}</p>
               </div>
               
-              <div className="bg-white/10 backdrop-blur-xl rounded-xl p-4 mb-6 border border-white/20">
-                <p className="text-sm text-white/50">UPI ID</p>
-                <p className="text-rose-300 font-mono font-bold text-lg">{paymentData.upiId}</p>
-              </div>
-              
-              <div className="flex items-center justify-center gap-2 text-amber-400 mb-4 animate-pulse">
-                <Loader2 className="w-5 h-5 animate-spin" />
-                <span>Waiting for payment...</span>
-              </div>
+              <p className="text-sm text-white/50 mb-4">Please pay at the counter</p>
               
               <button
-                onClick={handlePaymentConfirm}
-                className="w-full px-6 py-5 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 rounded-2xl text-white font-bold shadow-xl shadow-emerald-500/40 hover:shadow-emerald-500/60 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                onClick={() => {
+                  setStep('menu');
+                  setCart([]);
+                  setOrder(null);
+                }}
+                className="w-full px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl text-white font-bold"
               >
-                <Check className="w-6 h-6" />
-                I've Completed Payment
+                Order More
               </button>
-              <p className="text-xs text-white/40 mt-3">Pay via any UPI app, then click button</p>
             </div>
-          </div>
+          )}
         </div>
       )}
 
