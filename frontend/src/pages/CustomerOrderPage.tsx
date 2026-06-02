@@ -64,7 +64,6 @@ export function CustomerOrderPage() {
   const [showStatusBanner, setShowStatusBanner] = useState(false);
   const [menuChanged, setMenuChanged] = useState(false);
   const [renderRazorpayButton, setRenderRazorpayButton] = useState(false);
-  const [isRazorpayReady, setIsRazorpayReady] = useState(false);
   const prevStatus = useRef<string | null>(null);
   const lastItemCountRef = useRef(0);
   const initialized = useRef(false);
@@ -126,10 +125,7 @@ export function CustomerOrderPage() {
           if (!(window as any).Razorpay) {
             const script = document.createElement('script');
             script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-            script.onload = () => setIsRazorpayReady(true);
             document.body.appendChild(script);
-          } else {
-            setIsRazorpayReady(true);
           }
         }
       } catch (err) {
