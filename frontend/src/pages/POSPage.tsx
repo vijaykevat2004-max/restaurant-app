@@ -195,14 +195,14 @@ export function POSPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => updateQuantity(item.cartId, -1)}
+                        onClick={() => updateQuantity(item.cartId, item.quantity - 1)}
                         className="w-8 h-8 rounded-xl bg-white/10 text-white/70 hover:bg-white/20 transition-all flex items-center justify-center"
                       >
                         <Minus className="w-4 h-4" />
                       </button>
                       <span className="w-8 text-center font-bold text-white">{item.quantity}</span>
                       <button
-                        onClick={() => updateQuantity(item.cartId, 1)}
+                        onClick={() => updateQuantity(item.cartId, item.quantity + 1)}
                         className="w-8 h-8 rounded-xl bg-white/10 text-white/70 hover:bg-white/20 transition-all flex items-center justify-center"
                       >
                         <Plus className="w-4 h-4" />

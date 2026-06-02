@@ -209,7 +209,7 @@ export function AppLayout() {
                 <div className="p-2">
                   <button
                     onClick={() => {
-                      selectBranch(branches[0]?.id || null);
+                      selectBranch(null);
                       setShowBranchDropdown(false);
                     }}
                     className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 transition-colors"

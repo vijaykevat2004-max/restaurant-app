@@ -1,7 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import {
-  Utensils,
   ShoppingCart,
   Plus,
   Minus,
@@ -12,16 +11,10 @@ import {
   Loader,
   ChefHat,
   Sparkles,
-  Flame,
   Crown,
-  IceCream,
-  Coffee,
-  Pizza,
   X,
   RefreshCw,
   Bell,
-  Volume2,
-  VolumeX,
 } from 'lucide-react';
 import type { MenuCategory } from '../types';
 import { formatCurrency } from '../utils/currency';
@@ -50,7 +43,7 @@ const GRADIENT_COLORS = [
   'from-pink-500 via-rose-500 to-orange-500',
 ];
 
-const API_BASE = 'https://backend-vijay19.vercel.app/api/v1';
+const API_BASE = import.meta.env.VITE_API_URL || '/api/v1';
 
 export function CustomerOrderPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -67,12 +60,11 @@ export function CustomerOrderPage() {
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [orderStatus, setOrderStatus] = useState<string | null>(null);
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [soundEnabled] = useState(true);
   const [showStatusBanner, setShowStatusBanner] = useState(false);
   const [menuChanged, setMenuChanged] = useState(false);
-  const [lastItemCount, setLastItemCount] = useState(0);
-  const [refreshKey, setRefreshKey] = useState(0);
   const prevStatus = useRef<string | null>(null);
+  const lastItemCountRef = useRef(0);
   const initialized = useRef(false);
 
   const fetchMenu = useCallback(async () => {
@@ -86,12 +78,12 @@ export function CustomerOrderPage() {
         
         const totalItems = newCategories.reduce((sum: number, c: any) => sum + (c.items?.length || 0), 0);
         
-        if (initialized.current && totalItems !== lastItemCount && lastItemCount > 0) {
+        if (initialized.current && totalItems !== lastItemCountRef.current && lastItemCountRef.current > 0) {
           setMenuChanged(true);
           setTimeout(() => setMenuChanged(false), 4000);
         }
-        
-        setLastItemCount(totalItems);
+
+        lastItemCountRef.current = totalItems;
         initialized.current = true;
         
         setCategories(newCategories);
@@ -100,7 +92,7 @@ export function CustomerOrderPage() {
         if (newCategories.length > 0) {
           setSelectedCategory(prev => {
             if (!prev) return newCategories[0].id;
-            const exists = newCategories.some(c => c.id === prev);
+            const exists = newCategories.some((c: MenuCategory) => c.id === prev);
             return exists ? prev : newCategories[0].id;
           });
         }
@@ -113,7 +105,7 @@ export function CustomerOrderPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [slug, lastItemCount]);
+  }, [slug]);
 
   useEffect(() => {
     fetchMenu();
@@ -195,6 +187,8 @@ export function CustomerOrderPage() {
       const items = cart.map((item) => ({
         menuItemId: item.menuItemId,
         quantity: item.quantity,
+        name: item.name,
+        price: item.price,
       }));
 
       const res = await fetch(`${API_BASE}/menu/public/orders`, {
@@ -237,7 +231,6 @@ export function CustomerOrderPage() {
   };
 
   const handleRefresh = () => {
-    setRefreshKey(k => k + 1);
     setIsLoading(true);
     fetchMenu();
   };
@@ -493,7 +486,7 @@ export function CustomerOrderPage() {
               <div className="space-y-4">
                 <div className="bg-white p-4 rounded-xl">
                   <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=${restaurant.upiId}&pn=${encodeURIComponent(restaurant.upiName || restaurant.name)}&am=${getCartTotal()}&cu=INR`}
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=${encodeURIComponent(restaurant.upiId || '')}&pn=${encodeURIComponent(restaurant.upiName || restaurant.name)}&am=${getCartTotal()}&cu=INR`}
                     alt="QR Code"
                     className="w-48 h-48 mx-auto"
                   />

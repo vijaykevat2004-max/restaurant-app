@@ -4,6 +4,9 @@ import { useBranchStore } from '../stores';
 import type { Order, OrderStatus } from '../types';
 import { formatCurrency } from '../utils/currency';
 import { playOrderSound, playReadySound } from '../utils/sounds';
+import { api } from '../api/client';
+
+const API_BASE = import.meta.env.VITE_API_URL || '/api/v1';
 
 interface OrderItem {
   menuItemId: string;
@@ -15,6 +18,8 @@ interface OrderItem {
 
 interface ParsedOrder extends Omit<Order, 'items'> {
   items: OrderItem[];
+  customerName?: string;
+  tableNumber?: string | null;
 }
 
 const STATION_CATEGORIES: Record<string, { keywords: string[]; icon: React.ReactNode; color: string }> = {
@@ -53,7 +58,7 @@ function getStation(itemName: string): string {
       return station;
     }
   }
-  return 'GRILL';
+  return 'DEFAULT';
 }
 
 function getElapsedTime(createdAt: string): { minutes: number; seconds: number; color: string; urgent: boolean } {
@@ -134,9 +139,9 @@ function OrderCard({
             </span>
             <div className="flex-1">
               <p className="text-white font-semibold">{item.name}</p>
-              {item.categoryName && (
-                <span className="text-xs text-white/40">{item.categoryName}</span>
-              )}
+              <span className="text-xs text-white/40">
+                {item.categoryName || getStation(item.name)}
+              </span>
             </div>
           </div>
         ))}
@@ -185,11 +190,11 @@ export function KDSPage() {
 
   const fetchOrders = useCallback(async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = api.getToken();
       const params = new URLSearchParams();
       if (selectedBranchId) params.append('branchId', selectedBranchId);
       
-      const res = await fetch(`https://backend-vijay19.vercel.app/api/v1/orders/active?${params}`, {
+      const res = await fetch(`${API_BASE}/orders/active?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -226,8 +231,8 @@ export function KDSPage() {
 
   const handleStatusUpdate = async (orderId: string, status: OrderStatus) => {
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`https://backend-vijay19.vercel.app/api/v1/orders/${orderId}/status`, {
+      const token = api.getToken();
+      const res = await fetch(`${API_BASE}/orders/${orderId}/status`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -334,7 +339,7 @@ export function KDSPage() {
 
       {isLoading && orders.length === 0 ? (
         <div className="flex items-center justify-center h-64">
-          <div className="w-12 h-12 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 animate-spin" />
+          <div className="w-12 h-12 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
         </div>
       ) : filteredOrders.length === 0 ? (
         <div className="glass-card-vibrant py-20 text-center">

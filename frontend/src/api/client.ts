@@ -46,7 +46,6 @@ class ApiClient {
       });
 
       const text = await response.text();
-      console.log('API Response:', response.status, text.substring(0, 200));
       
       if (!text) {
         throw new Error('Empty response from server');
@@ -291,6 +290,36 @@ class ApiClient {
     if (!response.data) {
       throw new Error('Failed to create payout');
     }
+    return response.data;
+  }
+
+  async createBranch(name: string, address?: string): Promise<Branch> {
+    const response = await this.request<ApiResponse<Branch>>('/restaurant/branches', {
+      method: 'POST',
+      body: JSON.stringify({ name, address }),
+    });
+    if (!response.data) throw new Error('Failed to create branch');
+    return response.data;
+  }
+
+  async updateBranch(id: string, data: Partial<Branch>): Promise<Branch> {
+    const response = await this.request<ApiResponse<Branch>>(`/restaurant/branches/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+    if (!response.data) throw new Error('Failed to update branch');
+    return response.data;
+  }
+
+  async deleteBranch(id: string): Promise<void> {
+    await this.request(`/restaurant/branches/${id}`, { method: 'DELETE' });
+  }
+
+  async addUser(data: { name: string; email: string; password: string; role: string }): Promise<any> {
+    const response = await this.request<ApiResponse<any>>('/restaurant/users', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
     return response.data;
   }
 }

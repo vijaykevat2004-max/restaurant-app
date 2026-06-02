@@ -1,27 +1,80 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { QrCode, Download, Copy, Check, Link2, Sparkles, Scan } from 'lucide-react';
+import { api } from '../api/client';
 
 export function QRCodePage() {
   const [copied, setCopied] = useState(false);
+  const [menuSlug, setMenuSlug] = useState('');
+  const [restaurantName, setRestaurantName] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadRestaurant = async () => {
+      try {
+        const restaurant = await api.getRestaurant();
+        if (!mounted) return;
+
+        if (!restaurant?.slug) {
+          throw new Error('Restaurant slug not found');
+        }
+
+        setMenuSlug(restaurant.slug);
+        setRestaurantName(restaurant.name || 'Your Restaurant');
+        setLoadError(null);
+      } catch (error) {
+        console.error('Failed to load restaurant details for QR link:', error);
+        if (!mounted) return;
+        setLoadError('Could not load your restaurant link. Please refresh and try again.');
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadRestaurant();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const baseUrl = window.location.origin;
-  const menuSlug = 'apna-restaurant';
-  const menuUrl = `${baseUrl}/order/${menuSlug}`;
+  const menuUrl = useMemo(() => `${baseUrl}/order/${menuSlug}`, [baseUrl, menuSlug]);
 
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(menuUrl)}`;
+  const qrCodeUrl = useMemo(
+    () => `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(menuUrl)}`,
+    [menuUrl]
+  );
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(menuUrl);
+    if (!menuUrl) return;
+    void navigator.clipboard.writeText(menuUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   const handleDownload = () => {
+    if (!qrCodeUrl) return;
     const link = document.createElement('a');
     link.href = qrCodeUrl;
-    link.download = `apna-restaurant-menu-qr.png`;
+    link.download = `${menuSlug}-menu-qr.png`;
     link.click();
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-purple-950 to-slate-950 p-6 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin w-12 h-12 border-4 border-fuchsia-500 border-t-transparent rounded-full mx-auto mb-4" />
+          <p className="text-white/60">Loading QR link...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-purple-950 to-slate-950 p-6">
@@ -43,6 +96,13 @@ export function QRCodePage() {
             <Scan className="w-6 h-6 text-fuchsia-400" />
             <h2 className="text-xl font-bold text-white">Customer Menu QR Code</h2>
           </div>
+          {loadError ? (
+            <div className="p-4 rounded-xl bg-red-500/20 border border-red-500/30 mb-6">
+              <p className="text-red-300 text-sm">{loadError}</p>
+            </div>
+          ) : (
+            <p className="text-white/50 text-sm mb-6">{restaurantName}</p>
+          )}
           
           <div className="flex flex-col items-center">
             <div className="p-6 bg-white rounded-3xl shadow-2xl mb-6">
@@ -57,6 +117,7 @@ export function QRCodePage() {
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={handleDownload}
+                  disabled={!menuSlug}
                   className="py-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 transition-all flex items-center justify-center gap-2"
                 >
                   <Download className="w-5 h-5" />
@@ -64,6 +125,7 @@ export function QRCodePage() {
                 </button>
                 <button
                   onClick={handleCopy}
+                  disabled={!menuSlug}
                   className={`py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 ${
                     copied
                       ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white'

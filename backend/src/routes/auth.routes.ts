@@ -4,6 +4,7 @@ import { AuthService } from '../services/index.js';
 import { authenticate } from '../middleware/index.js';
 import { AuthenticatedRequest } from '../types/index.js';
 import { supabaseAdmin } from '../services/supabase-admin.js';
+import { config } from '../config/index.js';
 
 const router = Router();
 
@@ -188,7 +189,7 @@ router.post('/login', async (req: AuthenticatedRequest, res: Response) => {
 
     const token = jwt.sign(
       { userId: user.id, restaurantId: user.restaurantId, branchId: user.branchId, role: user.role },
-      process.env.JWT_SECRET || 'dev-secret',
+      config.jwt.secret,
       { expiresIn: '8h' }
     );
 

@@ -1,7 +1,5 @@
 import crypto from 'crypto';
-import { prisma } from '../config/database.js';
-import { WalletService } from './wallet.service.js';
-import { OrderService } from './order.service.js';
+import { supabaseAdmin } from './supabase-admin.js';
 import { config } from '../config/index.js';
 
 interface RazorpayPaymentData {
@@ -29,62 +27,6 @@ export class PaymentService {
     return expectedSignature === data.razorpay_signature;
   }
 
-  static async processPayment(orderId: string, restaurantId: string, paymentId: string) {
-    const order = await prisma.order.findFirst({
-      where: { id: orderId, restaurantId },
-    });
-
-    if (!order) {
-      throw new Error('Order not found');
-    }
-
-    if (order.paymentStatus === 'COMPLETED') {
-      throw new Error('Payment already processed');
-    }
-
-    const total = parseFloat(String(order.total));
-
-    await prisma.$transaction(async (tx) => {
-      await tx.order.update({
-        where: { id: orderId },
-        data: {
-          paymentStatus: 'COMPLETED',
-          paymentId,
-          status: 'CONFIRMED',
-        },
-      });
-
-      const wallet = await tx.wallet.findUnique({
-        where: { restaurantId },
-      });
-
-      if (wallet) {
-        await tx.wallet.update({
-          where: { id: wallet.id },
-          data: {
-            availableBalance: { increment: total },
-          },
-        });
-
-        await tx.ledger.create({
-          data: {
-            walletId: wallet.id,
-            restaurantId,
-            type: 'CREDIT',
-            amount: total,
-            reference: paymentId,
-            description: `Order #${order.orderNumber} payment`,
-            metadata: JSON.stringify({ orderId, orderNumber: order.orderNumber }),
-          },
-        });
-      }
-    });
-
-    const updatedOrder = await OrderService.getOrder(orderId, restaurantId);
-
-    return updatedOrder;
-  }
-
   static async handleWebhook(
     event: string,
     payload: Record<string, unknown>
@@ -110,10 +52,10 @@ export class PaymentService {
       case 'payment.failed': {
         const payment = payload as { id: string };
 
-        await prisma.order.updateMany({
-          where: { paymentId: payment.id },
-          data: { paymentStatus: 'FAILED' },
-        });
+        await supabaseAdmin
+          .from('Order')
+          .update({ paymentStatus: 'FAILED' })
+          .eq('paymentId', payment.id);
 
         return { success: true, message: 'Payment failure noted' };
       }
@@ -124,22 +66,55 @@ export class PaymentService {
   }
 
   private static async processPaymentFromWebhook(orderId: string, paymentId: string) {
-    const order = await prisma.order.findFirst({
-      where: { paymentId },
-    });
+    const { data: existing } = await supabaseAdmin
+      .from('Order')
+      .select('id')
+      .eq('paymentId', paymentId)
+      .single();
 
-    if (order) {
-      return;
-    }
+    if (existing) return;
 
-    const foundOrder = await prisma.order.findUnique({
-      where: { id: orderId },
-    });
+    const { data: foundOrder } = await supabaseAdmin
+      .from('Order')
+      .select('*')
+      .eq('id', orderId)
+      .single();
 
     if (!foundOrder) {
       throw new Error(`Order not found: ${orderId}`);
     }
 
-    await this.processPayment(orderId, foundOrder.restaurantId, paymentId);
+    const total = Number(foundOrder.total);
+
+    const { data: wallet } = await supabaseAdmin
+      .from('Wallet')
+      .select('*')
+      .eq('restaurantId', foundOrder.restaurantId)
+      .single();
+
+    if (wallet) {
+      await supabaseAdmin
+        .from('Wallet')
+        .update({ availableBalance: Number(wallet.availableBalance) + total })
+        .eq('id', wallet.id);
+
+      await supabaseAdmin.from('Ledger').insert({
+        walletId: wallet.id,
+        restaurantId: foundOrder.restaurantId,
+        type: 'CREDIT',
+        amount: total,
+        reference: paymentId,
+        description: `Order #${foundOrder.orderNumber} payment`,
+      });
+    }
+
+    await supabaseAdmin
+      .from('Order')
+      .update({
+        paymentStatus: 'COMPLETED',
+        paymentId,
+        status: 'CONFIRMED',
+      })
+      .eq('id', orderId);
   }
 }

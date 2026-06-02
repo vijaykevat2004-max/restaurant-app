@@ -338,7 +338,7 @@ router.delete('/items/:id', requireOwnerOrManager, async (req: AuthenticatedRequ
       return;
     }
 
-    const { error } = await supabaseAdmin.from('MenuItem').delete().eq('id', req.params.id);
+    const { error } = await supabaseAdmin.from('MenuItem').delete().eq('id', req.params.id).eq('restaurantId', req.user.restaurantId);
 
     if (error) throw error;
 

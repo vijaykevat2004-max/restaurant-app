@@ -13,7 +13,7 @@ const generateCheckSum = (params: Record<string, string>, merchantKey: string): 
   }
   
   hashString += `merchantKey=${merchantKey}`;
-  return (crypto.createHash('sha256').update(hashString) as any).hexDigest();
+  return crypto.createHash('sha256').update(hashString).digest('hex');
 };
 
 const generateChecksum = (params: Record<string, string>, merchantKey: string): string => {
@@ -31,7 +31,7 @@ const generateChecksum = (params: Record<string, string>, merchantKey: string): 
   const hash = crypto.createHash('sha256');
   hash.update(paramStr + merchantKey);
   
-  return (hash.update(paramStr + merchantKey) as any).hexDigest();
+  return hash.digest('hex');
 };
 
 export class PaytmService {
@@ -88,7 +88,7 @@ export class PaytmService {
     paramStr = paramStr.slice(0, -1);
     const hash = crypto.createHash('sha256');
     hash.update(paramStr + merchantKey);
-    const calculatedChecksum = (hash.update(paramStr + merchantKey) as any).hexDigest();
+    const calculatedChecksum = hash.digest('hex');
     
     return paytmChecksum === calculatedChecksum;
   }

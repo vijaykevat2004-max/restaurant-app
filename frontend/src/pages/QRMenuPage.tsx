@@ -5,11 +5,20 @@ import {
   ShoppingCart,
   Plus,
   Minus,
+  RefreshCw,
+  Loader,
+  Check,
 } from 'lucide-react';
-import type { MenuCategory, CartItem } from '../types';
+import type { MenuCategory } from '../types';
 import { formatCurrency } from '../utils/currency';
 
-interface CartItemWithId extends CartItem {
+const API_BASE = import.meta.env.VITE_API_URL || '/api/v1';
+
+interface CartItemWithId {
+  menuItemId: string;
+  name: string;
+  price: number;
+  quantity: number;
   cartId: string;
 }
 
@@ -20,28 +29,62 @@ export function QRMenuPage() {
   const [cart, setCart] = useState<CartItemWithId[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshNonce, setRefreshNonce] = useState(0);
   const [showCart, setShowCart] = useState(false);
+  const [customerName, setCustomerName] = useState('');
+  const [tableNumber, setTableNumber] = useState('');
+  const [order, setOrder] = useState<{ id: string; orderNumber: number } | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+
     const fetchData = async () => {
+      setIsRefreshing(true);
       try {
-        const res = await fetch(`https://backend-vijay19.vercel.app/api/v1/menu/public/${slug}`);
+        const res = await fetch(`${API_BASE}/menu/public/${slug}?t=${Date.now()}`, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+            Pragma: 'no-cache',
+          },
+        });
         const data = await res.json();
-        if (data.success) {
-          setCategories(data.data || []);
+        if (cancelled) return;
+
+        if (data.success && Array.isArray(data.data)) {
+          const nextCategories: MenuCategory[] = data.data;
+          setCategories(nextCategories);
           setRestaurant(data.restaurant);
-          if (data.data?.length > 0) {
-            setSelectedCategory(data.data[0].id);
-          }
+
+          setSelectedCategory((prev) => {
+            if (!nextCategories.length) return null;
+            if (!prev) return nextCategories[0].id;
+            const stillExists = nextCategories.some((c) => c.id === prev);
+            return stillExists ? prev : nextCategories[0].id;
+          });
         }
       } catch (error) {
         console.error('Failed to fetch menu:', error);
       } finally {
-        setIsLoading(false);
+        if (!cancelled) {
+          setIsLoading(false);
+          setIsRefreshing(false);
+        }
       }
     };
+
     fetchData();
-  }, [slug]);
+
+    const interval = setInterval(fetchData, 5000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [slug, refreshNonce]);
 
   const addToCart = (item: MenuCategory['items'][0]) => {
     const existing = cart.find((c) => c.menuItemId === item.id);
@@ -74,6 +117,35 @@ export function QRMenuPage() {
   };
 
   const getCartTotal = () => cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+  const handlePlaceOrder = async () => {
+    if (!customerName.trim()) {
+      setCheckoutError('Please enter your name');
+      return;
+    }
+    setCheckoutError(null);
+    setIsProcessing(true);
+    try {
+      const res = await fetch(`${API_BASE}/menu/public/orders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: cart.map((i) => ({ menuItemId: i.menuItemId, quantity: i.quantity, name: i.name, price: i.price })),
+          customerName: customerName.trim(),
+          tableNumber: tableNumber.trim() || undefined,
+          slug,
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Failed to place order');
+      setOrder(data.order);
+      setCart([]);
+    } catch (err: any) {
+      setCheckoutError(err.message);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const selectedCategoryData = categories.find((c) => c.id === selectedCategory);
 
@@ -113,6 +185,16 @@ export function QRMenuPage() {
                   {cart.reduce((sum, item) => sum + item.quantity, 0)}
                 </span>
               )}
+            </button>
+            <button
+              onClick={() => {
+                setIsLoading(true);
+                setRefreshNonce((v) => v + 1);
+              }}
+              className="p-2 bg-gray-100 text-gray-700 rounded-xl"
+              title="Menu auto-refreshes every 5s"
+            >
+              <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>
@@ -183,11 +265,11 @@ export function QRMenuPage() {
         )}
       </main>
 
-      {/* Cart Drawer */}
-      {showCart && (
+      {/* Cart / Checkout Drawer */}
+      {showCart && !order && (
         <div className="fixed inset-0 z-50">
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowCart(false)} />
-          <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-xl animate-slide-in">
+          <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-xl animate-slide-in overflow-y-auto">
             <div className="flex flex-col h-full">
               <div className="flex items-center justify-between p-4 border-b">
                 <h2 className="text-lg font-bold">Your Order</h2>
@@ -213,6 +295,26 @@ export function QRMenuPage() {
                   </div>
                 ) : (
                   <div className="space-y-3">
+                    <div className="bg-gray-50 rounded-lg p-4 space-y-3 mb-4">
+                      <h3 className="font-semibold text-gray-700">Your Details</h3>
+                      <input
+                        type="text"
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        placeholder="Your Name *"
+                        className="w-full px-3 py-2 rounded-lg border border-gray-200"
+                      />
+                      <input
+                        type="text"
+                        value={tableNumber}
+                        onChange={(e) => setTableNumber(e.target.value)}
+                        placeholder="Table Number (optional)"
+                        className="w-full px-3 py-2 rounded-lg border border-gray-200"
+                      />
+                    </div>
+                    {checkoutError && (
+                      <p className="text-red-500 text-sm mb-2">{checkoutError}</p>
+                    )}
                     {cart.map((item) => (
                       <div key={item.cartId} className="flex items-center gap-3 bg-gray-50 rounded-lg p-3">
                         <div className="flex-1">
@@ -249,13 +351,39 @@ export function QRMenuPage() {
                     <span className="text-gray-600">Subtotal</span>
                     <span className="font-bold text-gray-900">{formatCurrency(getCartTotal())}</span>
                   </div>
-                  <button className="w-full py-4 bg-orange-500 text-white rounded-xl font-bold text-lg hover:bg-orange-600 transition-colors">
-                    Place Order
+                  <button
+                    onClick={handlePlaceOrder}
+                    disabled={isProcessing}
+                    className="w-full py-4 bg-orange-500 text-white rounded-xl font-bold text-lg hover:bg-orange-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isProcessing ? (
+                      <><Loader className="w-5 h-5 animate-spin" /> Placing Order...</>
+                    ) : (
+                      'Place Order'
+                    )}
                   </button>
                 </div>
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Order Confirmation */}
+      {order && (
+        <div className="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center p-4">
+          <div className="w-20 h-20 rounded-full bg-emerald-500 flex items-center justify-center mb-4">
+            <Check className="w-10 h-10 text-white" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Order Placed!</h2>
+          <p className="text-5xl font-bold text-orange-500 mb-2">#{order.orderNumber}</p>
+          <p className="text-gray-500 mb-6">Thank you for your order</p>
+          <button
+            onClick={() => { setOrder(null); setShowCart(false); setCustomerName(''); setTableNumber(''); setCheckoutError(null); }}
+            className="px-8 py-3 bg-orange-500 text-white rounded-xl font-bold"
+          >
+            Order More
+          </button>
         </div>
       )}
     </div>

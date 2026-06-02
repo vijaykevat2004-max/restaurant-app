@@ -7,7 +7,7 @@ import { formatCurrency } from '../utils/currency';
 
 const STATUS_FILTERS: { value: OrderStatus | 'ALL'; label: string; gradient: string }[] = [
   { value: 'ALL', label: 'All', gradient: 'from-slate-500 to-gray-500' },
-  { value: 'NEW', label: 'New', gradient: 'from-cyan-500 to-blue-500' },
+  { value: 'PENDING', label: 'New', gradient: 'from-cyan-500 to-blue-500' },
   { value: 'CONFIRMED', label: 'Confirmed', gradient: 'from-violet-500 to-purple-500' },
   { value: 'PREPARING', label: 'Preparing', gradient: 'from-amber-500 to-orange-500' },
   { value: 'READY', label: 'Ready', gradient: 'from-emerald-500 to-teal-500' },
@@ -23,7 +23,7 @@ function formatTime(dateString: string) {
 
 function getStatusBadge(status: OrderStatus) {
   const statusMap: Record<OrderStatus, { gradient: string; color: string }> = {
-    NEW: { gradient: 'from-cyan-500/20 to-blue-500/20', color: 'text-cyan-400' },
+    PENDING: { gradient: 'from-cyan-500/20 to-blue-500/20', color: 'text-cyan-400' },
     CONFIRMED: { gradient: 'from-violet-500/20 to-purple-500/20', color: 'text-violet-400' },
     PREPARING: { gradient: 'from-amber-500/20 to-orange-500/20', color: 'text-amber-400' },
     READY: { gradient: 'from-emerald-500/20 to-teal-500/20', color: 'text-emerald-400' },
@@ -31,11 +31,11 @@ function getStatusBadge(status: OrderStatus) {
     COMPLETED: { gradient: 'from-green-500/20 to-emerald-500/20', color: 'text-green-400' },
     CANCELLED: { gradient: 'from-red-500/20 to-rose-500/20', color: 'text-red-400' },
   };
-  return statusMap[status] || statusMap.NEW;
+  return statusMap[status] || statusMap.PENDING;
 }
 
 const NEXT_STATUS: Partial<Record<OrderStatus, { status: OrderStatus; label: string; gradient: string }>> = {
-  NEW: { status: 'CONFIRMED', label: 'Confirm', gradient: 'from-violet-500 to-purple-500' },
+  PENDING: { status: 'CONFIRMED', label: 'Confirm', gradient: 'from-violet-500 to-purple-500' },
   CONFIRMED: { status: 'PREPARING', label: 'Start Prep', gradient: 'from-amber-500 to-orange-500' },
   PREPARING: { status: 'READY', label: 'Mark Ready', gradient: 'from-emerald-500 to-teal-500' },
   READY: { status: 'SERVED', label: 'Served', gradient: 'from-fuchsia-500 to-pink-500' },
@@ -221,7 +221,7 @@ export function OrdersPage() {
                         </button>
                       )}
 
-                      {order.status === 'NEW' && (
+                      {order.status === 'PENDING' && (
                         <button
                           onClick={() => api.cancelOrder(order.id).then(() => fetchOrders())}
                           className="px-5 py-3 rounded-xl bg-gradient-to-r from-red-500 to-rose-500 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300"

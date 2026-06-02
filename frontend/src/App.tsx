@@ -102,6 +102,9 @@ function App() {
   useEffect(() => {
     if (!initialized || authLoading) return;
 
+    const { user, token } = useAuthStore.getState();
+    if (!user || !token) return;
+
     const loadBranches = async () => {
       try {
         const branches = await api.getBranches();

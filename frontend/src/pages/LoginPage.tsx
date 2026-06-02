@@ -155,11 +155,9 @@ export function LoginPage() {
                 Demo Accounts
               </p>
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 max-w-xs mx-auto">
               {[
                 { role: 'Owner', email: 'owner@apna-restaurant.com' },
-                { role: 'Manager', email: 'manager@demo.com' },
-                { role: 'Staff', email: 'staff@demo.com' },
               ].map((account) => (
                 <button
                   key={account.role}
@@ -171,11 +169,12 @@ export function LoginPage() {
                   className="p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-violet-500/30 transition-all duration-300 text-center group"
                 >
                   <p className="text-xs font-semibold text-violet-400 group-hover:text-violet-300">{account.role}</p>
-                  <p className="text-[10px] text-white/40 mt-1 truncate">{account.email.split('@')[0]}</p>
+                  <p className="text-[10px] text-white/40 mt-1 truncate">{account.email}</p>
                 </button>
               ))}
             </div>
-            <p className="text-center text-xs text-white/30 mt-4">Password for all: password123</p>
+            <p className="text-center text-xs text-white/30 mt-4">Password: password123</p>
+            <p className="text-center text-xs text-white/20 mt-2">Login as Owner, then add team members in Settings</p>
           </div>
         </div>
 

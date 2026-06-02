@@ -85,6 +85,17 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
 
     if (error) throw error;
 
+    const { error: walletError } = await supabaseAdmin
+      .from('Wallet')
+      .update({
+        availableBalance: Number(wallet.availableBalance) - body.amount,
+      })
+      .eq('id', wallet.id);
+
+    if (walletError) {
+      console.error('Wallet deduction error:', walletError);
+    }
+
     res.status(201).json({
       success: true,
       data: {

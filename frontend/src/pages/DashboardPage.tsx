@@ -228,7 +228,7 @@ export function DashboardPage() {
                       </div>
                       <div className="flex items-center gap-4">
                         <span className={`status-badge-vibrant ${
-                          order.status === 'NEW' ? 'status-new-vibrant' :
+                          order.status === 'PENDING' ? 'status-new-vibrant' :
                           order.status === 'CONFIRMED' ? 'status-confirmed-vibrant' :
                           order.status === 'PREPARING' ? 'status-preparing-vibrant' :
                           'status-ready-vibrant'

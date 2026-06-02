@@ -72,37 +72,47 @@ router.post('/verify', async (req: Request, res: Response) => {
     }
 
     if (status === 'SUCCESS' || status === 'success' || status === 'VERIFIED') {
-      await supabaseAdmin
-        .from('Order')
-        .update({
-          paymentStatus: 'COMPLETED',
-          paymentId,
-          status: 'CONFIRMED',
-        })
-        .eq('id', orderId);
-
       const { data: wallet } = await supabaseAdmin
         .from('Wallet')
         .select('*')
         .eq('restaurantId', order.restaurantId)
         .single();
 
-      if (wallet) {
-        await supabaseAdmin
-          .from('Wallet')
-          .update({
-            availableBalance: Number(wallet.availableBalance) + Number(order.total),
-          })
-          .eq('id', wallet.id);
+      try {
+        if (wallet) {
+          const { error: walletError } = await supabaseAdmin
+            .from('Wallet')
+            .update({
+              availableBalance: Number(wallet.availableBalance) + Number(order.total),
+            })
+            .eq('id', wallet.id);
 
-        await supabaseAdmin.from('Ledger').insert({
-          walletId: wallet.id,
-          restaurantId: order.restaurantId,
-          type: 'CREDIT',
-          amount: order.total,
-          reference: paymentId,
-          description: `Order #${order.orderNumber} payment`,
-        });
+          if (walletError) throw walletError;
+
+          const { error: ledgerError } = await supabaseAdmin.from('Ledger').insert({
+            walletId: wallet.id,
+            restaurantId: order.restaurantId,
+            type: 'CREDIT',
+            amount: order.total,
+            reference: paymentId,
+            description: `Order #${order.orderNumber} payment`,
+          });
+
+          if (ledgerError) throw ledgerError;
+        }
+
+        await supabaseAdmin
+          .from('Order')
+          .update({
+            paymentStatus: 'COMPLETED',
+            paymentId,
+            status: 'CONFIRMED',
+          })
+          .eq('id', orderId);
+      } catch (innerErr) {
+        console.error('Payment processing error:', innerErr);
+        res.status(500).json({ success: false, error: 'Payment processing failed, order not charged' });
+        return;
       }
 
       res.json({

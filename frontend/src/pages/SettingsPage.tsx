@@ -26,18 +26,21 @@ export function SettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [showAddUser, setShowAddUser] = useState(false);
   const [showAddBranch, setShowAddBranch] = useState(false);
+  const [restaurantName, setRestaurantName] = useState('');
   const [upiId, setUpiId] = useState('');
   const [upiName, setUpiName] = useState('');
   const [paytmMid, setPaytmMid] = useState('');
   const [paytmKey, setPaytmKey] = useState('');
   const [paymentMode, setPaymentMode] = useState<'upi' | 'paytm'>('upi');
   const [isSavingUpi, setIsSavingUpi] = useState(false);
+  const [isSavingRestaurant, setIsSavingRestaurant] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const restaurantData = await api.getRestaurant();
         setRestaurant(restaurantData);
+        setRestaurantName(restaurantData.name || '');
         setUpiId(restaurantData.upiId || '');
         setUpiName(restaurantData.upiName || '');
       } catch (error) {
@@ -49,6 +52,19 @@ export function SettingsPage() {
 
     fetchData();
   }, []);
+
+  const handleSaveRestaurant = async () => {
+    if (!restaurantName.trim()) return;
+    setIsSavingRestaurant(true);
+    try {
+      const updated = await api.updateRestaurant({ name: restaurantName });
+      setRestaurant(updated);
+    } catch (error) {
+      console.error('Failed to save restaurant:', error);
+    } finally {
+      setIsSavingRestaurant(false);
+    }
+  };
 
   const handleSaveUpi = async () => {
     setIsSavingUpi(true);
@@ -131,15 +147,19 @@ export function SettingsPage() {
             <div className="space-y-5">
               <div>
                 <label className="block text-sm font-medium text-white/60 mb-2">Restaurant Name</label>
-                <input type="text" defaultValue={restaurant?.name || ''} className="input-vibrant" />
+                <input type="text" value={restaurantName} onChange={(e) => setRestaurantName(e.target.value)} className="input-vibrant" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-white/60 mb-2">Slug</label>
                 <input type="text" defaultValue={restaurant?.slug || ''} disabled className="input-vibrant opacity-50" />
                 <p className="text-xs text-white/40 mt-2">URL: yoursite.com/{restaurant?.slug}</p>
               </div>
-              <button className="btn-vibrant btn-violet flex items-center gap-2">
-                <Check className="w-5 h-5" />
+              <button onClick={handleSaveRestaurant} disabled={isSavingRestaurant} className="btn-vibrant btn-violet flex items-center gap-2">
+                {isSavingRestaurant ? (
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Check className="w-5 h-5" />
+                )}
                 Save Changes
               </button>
             </div>
@@ -177,10 +197,34 @@ export function SettingsPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <button className="p-3 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all">
+                      <button
+                        onClick={async () => {
+                          const newName = prompt('New branch name:', branch.name);
+                          if (newName && newName !== branch.name) {
+                            try {
+                              const updated = await api.updateBranch(branch.id, { name: newName });
+                              setBranches(branches.map((b) => b.id === branch.id ? { ...b, ...updated } : b));
+                            } catch (e) { console.error(e); }
+                          }
+                        }}
+                        className="p-3 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all"
+                      >
                         <Edit2 className="w-5 h-5" />
                       </button>
-                      <button className="p-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-all">
+                      <button
+                        onClick={async () => {
+                          if (!confirm(`Delete branch "${branch.name}"?`)) return;
+                          try {
+                            const res = await fetch(`${import.meta.env.VITE_API_URL || '/api/v1'}/restaurant/branches/${branch.id}`, {
+                              method: 'DELETE',
+                              headers: { Authorization: `Bearer ${api.getToken()}` },
+                            });
+                            const data = await res.json();
+                            if (data.success) setBranches(branches.filter((b) => b.id !== branch.id));
+                          } catch (e) { console.error(e); }
+                        }}
+                        className="p-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-all"
+                      >
                         <Trash2 className="w-5 h-5" />
                       </button>
                     </div>
@@ -348,18 +392,18 @@ export function SettingsPage() {
           <AddBranchModal onClose={() => setShowAddBranch(false)} onAdd={(branch) => {
             setBranches([...branches, branch]);
             setShowAddBranch(false);
-          }} />
+          }} apiToken={api.getToken()} />
         )}
 
         {showAddUser && (
-          <AddUserModal onClose={() => setShowAddUser(false)} />
+          <AddUserModal onClose={() => setShowAddUser(false)} apiToken={api.getToken()} />
         )}
       </div>
     </div>
   );
 }
 
-function AddBranchModal({ onClose, onAdd }: { onClose: () => void; onAdd: (branch: Branch) => void }) {
+function AddBranchModal({ onClose, onAdd, apiToken }: { onClose: () => void; onAdd: (branch: Branch) => void; apiToken: string | null }) {
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -368,11 +412,20 @@ function AddBranchModal({ onClose, onAdd }: { onClose: () => void; onAdd: (branc
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      onAdd({
-        id: crypto.randomUUID(),
-        name,
-        address: address || null,
+      const res = await fetch(`${import.meta.env.VITE_API_URL || '/api/v1'}/restaurant/branches`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiToken}`,
+        },
+        body: JSON.stringify({ name, address: address || undefined }),
       });
+      const data = await res.json();
+      if (data.success) {
+        onAdd(data.data);
+      } else {
+        console.error('Failed to add branch:', data.error);
+      }
     } catch (error) {
       console.error('Failed to add branch:', error);
     } finally {
@@ -426,7 +479,7 @@ function AddBranchModal({ onClose, onAdd }: { onClose: () => void; onAdd: (branc
   );
 }
 
-function AddUserModal({ onClose }: { onClose: () => void }) {
+function AddUserModal({ onClose, apiToken }: { onClose: () => void; apiToken: string | null }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -437,8 +490,20 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      console.log({ name, email, password, role });
-      onClose();
+      const res = await fetch(`${import.meta.env.VITE_API_URL || '/api/v1'}/restaurant/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiToken}`,
+        },
+        body: JSON.stringify({ name, email, password, role }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        onClose();
+      } else {
+        console.error('Failed to add user:', data.error);
+      }
     } catch (error) {
       console.error('Failed to add user:', error);
     } finally {

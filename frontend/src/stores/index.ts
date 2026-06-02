@@ -176,10 +176,11 @@ export const useOrderStore = create<OrderState>()((set, get) => ({
   setActiveOrders: (activeOrders) => set({ activeOrders }),
 
   addOrder: (order) => {
-    const { activeOrders } = get();
+    const { orders, activeOrders } = get();
     if (!['COMPLETED', 'CANCELLED'].includes(order.status)) {
       set({ activeOrders: [...activeOrders, order] });
     }
+    set({ orders: [...orders, order] });
   },
 
   updateOrder: (order) => {
