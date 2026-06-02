@@ -118,6 +118,7 @@ CREATE TABLE IF NOT EXISTS "MenuItem" (
     "isVeg" BOOLEAN DEFAULT true,
     "modifiers" TEXT,
     "prepTime" INTEGER DEFAULT 15,
+    "restaurantId" TEXT,
     "createdAt" TIMESTAMPTZ DEFAULT now(),
     "updatedAt" TIMESTAMPTZ DEFAULT now()
 );
@@ -137,6 +138,7 @@ CREATE INDEX IF NOT EXISTS "Payout_restaurantId_idx" ON "Payout"("restaurantId")
 CREATE INDEX IF NOT EXISTS "Payout_status_idx" ON "Payout"("status");
 CREATE INDEX IF NOT EXISTS "MenuCategory_restaurantId_idx" ON "MenuCategory"("restaurantId");
 CREATE INDEX IF NOT EXISTS "MenuItem_categoryId_idx" ON "MenuItem"("categoryId");
+CREATE INDEX IF NOT EXISTS "MenuItem_restaurantId_idx" ON "MenuItem"("restaurantId");
 
 -- Add foreign keys
 ALTER TABLE "User" ADD CONSTRAINT "User_restaurantId_fkey" FOREIGN KEY ("restaurantId") REFERENCES "Restaurant"("id") ON DELETE CASCADE;

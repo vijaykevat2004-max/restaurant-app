@@ -46,52 +46,52 @@ VALUES ('cat-desserts', 'demo-restaurant-id', 'Desserts', 3)
 ON CONFLICT ("id") DO NOTHING;
 
 -- Menu Items
-INSERT INTO "MenuItem" ("id", "categoryId", "name", "description", "price", "isAvailable", "isVeg", "prepTime")
-VALUES ('item-caesar-salad', 'cat-appetizers', 'Caesar Salad', 'Fresh romaine lettuce with caesar dressing', 299.00, true, true, 10)
+INSERT INTO "MenuItem" ("id", "categoryId", "name", "description", "price", "isAvailable", "isVeg", "prepTime", "restaurantId")
+VALUES ('item-caesar-salad', 'cat-appetizers', 'Caesar Salad', 'Fresh romaine lettuce with caesar dressing', 299.00, true, true, 10, 'demo-restaurant-id')
 ON CONFLICT ("id") DO NOTHING;
 
-INSERT INTO "MenuItem" ("id", "categoryId", "name", "description", "price", "isAvailable", "isVeg", "prepTime")
-VALUES ('item-garlic-bread', 'cat-appetizers', 'Garlic Bread', 'Toasted bread with garlic butter', 149.00, true, true, 8)
+INSERT INTO "MenuItem" ("id", "categoryId", "name", "description", "price", "isAvailable", "isVeg", "prepTime", "restaurantId")
+VALUES ('item-garlic-bread', 'cat-appetizers', 'Garlic Bread', 'Toasted bread with garlic butter', 149.00, true, true, 8, 'demo-restaurant-id')
 ON CONFLICT ("id") DO NOTHING;
 
-INSERT INTO "MenuItem" ("id", "categoryId", "name", "description", "price", "isAvailable", "isVeg", "prepTime")
-VALUES ('item-soup-of-the-day', 'cat-appetizers', 'Soup of the Day', 'Ask your server for todays selection', 199.00, true, true, 12)
+INSERT INTO "MenuItem" ("id", "categoryId", "name", "description", "price", "isAvailable", "isVeg", "prepTime", "restaurantId")
+VALUES ('item-soup-of-the-day', 'cat-appetizers', 'Soup of the Day', 'Ask your server for todays selection', 199.00, true, true, 12, 'demo-restaurant-id')
 ON CONFLICT ("id") DO NOTHING;
 
-INSERT INTO "MenuItem" ("id", "categoryId", "name", "description", "price", "isAvailable", "isVeg", "prepTime")
-VALUES ('item-grilled-salmon', 'cat-mains', 'Grilled Salmon', 'Atlantic salmon with seasonal vegetables', 799.00, true, false, 20)
+INSERT INTO "MenuItem" ("id", "categoryId", "name", "description", "price", "isAvailable", "isVeg", "prepTime", "restaurantId")
+VALUES ('item-grilled-salmon', 'cat-mains', 'Grilled Salmon', 'Atlantic salmon with seasonal vegetables', 799.00, true, false, 20, 'demo-restaurant-id')
 ON CONFLICT ("id") DO NOTHING;
 
-INSERT INTO "MenuItem" ("id", "categoryId", "name", "description", "price", "isAvailable", "isVeg", "prepTime")
-VALUES ('item-ribeye-steak', 'cat-mains', 'Ribeye Steak', '12oz prime ribeye with mashed potatoes', 999.00, true, false, 25)
+INSERT INTO "MenuItem" ("id", "categoryId", "name", "description", "price", "isAvailable", "isVeg", "prepTime", "restaurantId")
+VALUES ('item-ribeye-steak', 'cat-mains', 'Ribeye Steak', '12oz prime ribeye with mashed potatoes', 999.00, true, false, 25, 'demo-restaurant-id')
 ON CONFLICT ("id") DO NOTHING;
 
-INSERT INTO "MenuItem" ("id", "categoryId", "name", "description", "price", "isAvailable", "isVeg", "prepTime")
-VALUES ('item-chicken-parmesan', 'cat-mains', 'Chicken Parmesan', 'Breaded chicken with marinara and pasta', 649.00, true, false, 22)
+INSERT INTO "MenuItem" ("id", "categoryId", "name", "description", "price", "isAvailable", "isVeg", "prepTime", "restaurantId")
+VALUES ('item-chicken-parmesan', 'cat-mains', 'Chicken Parmesan', 'Breaded chicken with marinara and pasta', 649.00, true, false, 22, 'demo-restaurant-id')
 ON CONFLICT ("id") DO NOTHING;
 
-INSERT INTO "MenuItem" ("id", "categoryId", "name", "description", "price", "isAvailable", "isVeg", "prepTime")
-VALUES ('item-vegetable-pasta', 'cat-mains', 'Vegetable Pasta', 'Penne with garden vegetables in garlic oil', 499.00, true, true, 18)
+INSERT INTO "MenuItem" ("id", "categoryId", "name", "description", "price", "isAvailable", "isVeg", "prepTime", "restaurantId")
+VALUES ('item-vegetable-pasta', 'cat-mains', 'Vegetable Pasta', 'Penne with garden vegetables in garlic oil', 499.00, true, true, 18, 'demo-restaurant-id')
 ON CONFLICT ("id") DO NOTHING;
 
-INSERT INTO "MenuItem" ("id", "categoryId", "name", "description", "price", "isAvailable", "isVeg", "prepTime")
-VALUES ('item-soft-drinks', 'cat-drinks', 'Soft Drinks', 'Coke, Sprite, Fanta', 49.00, true, true, 3)
+INSERT INTO "MenuItem" ("id", "categoryId", "name", "description", "price", "isAvailable", "isVeg", "prepTime", "restaurantId")
+VALUES ('item-soft-drinks', 'cat-drinks', 'Soft Drinks', 'Coke, Sprite, Fanta', 49.00, true, true, 3, 'demo-restaurant-id')
 ON CONFLICT ("id") DO NOTHING;
 
-INSERT INTO "MenuItem" ("id", "categoryId", "name", "description", "price", "isAvailable", "isVeg", "prepTime")
-VALUES ('item-fresh-juice', 'cat-drinks', 'Fresh Juice', 'Orange, Apple, or Cranberry', 149.00, true, true, 5)
+INSERT INTO "MenuItem" ("id", "categoryId", "name", "description", "price", "isAvailable", "isVeg", "prepTime", "restaurantId")
+VALUES ('item-fresh-juice', 'cat-drinks', 'Fresh Juice', 'Orange, Apple, or Cranberry', 149.00, true, true, 5, 'demo-restaurant-id')
 ON CONFLICT ("id") DO NOTHING;
 
-INSERT INTO "MenuItem" ("id", "categoryId", "name", "description", "price", "isAvailable", "isVeg", "prepTime")
-VALUES ('item-coffee', 'cat-drinks', 'Coffee', 'Regular or Decaf', 99.00, true, true, 5)
+INSERT INTO "MenuItem" ("id", "categoryId", "name", "description", "price", "isAvailable", "isVeg", "prepTime", "restaurantId")
+VALUES ('item-coffee', 'cat-drinks', 'Coffee', 'Regular or Decaf', 99.00, true, true, 5, 'demo-restaurant-id')
 ON CONFLICT ("id") DO NOTHING;
 
-INSERT INTO "MenuItem" ("id", "categoryId", "name", "description", "price", "isAvailable", "isVeg", "prepTime")
-VALUES ('item-chocolate-cake', 'cat-desserts', 'Chocolate Cake', 'Rich chocolate layer cake', 249.00, true, true, 10)
+INSERT INTO "MenuItem" ("id", "categoryId", "name", "description", "price", "isAvailable", "isVeg", "prepTime", "restaurantId")
+VALUES ('item-chocolate-cake', 'cat-desserts', 'Chocolate Cake', 'Rich chocolate layer cake', 249.00, true, true, 10, 'demo-restaurant-id')
 ON CONFLICT ("id") DO NOTHING;
 
-INSERT INTO "MenuItem" ("id", "categoryId", "name", "description", "price", "isAvailable", "isVeg", "prepTime")
-VALUES ('item-ice-cream-sundae', 'cat-desserts', 'Ice Cream Sundae', 'Vanilla ice cream with chocolate sauce', 199.00, true, true, 8)
+INSERT INTO "MenuItem" ("id", "categoryId", "name", "description", "price", "isAvailable", "isVeg", "prepTime", "restaurantId")
+VALUES ('item-ice-cream-sundae', 'cat-desserts', 'Ice Cream Sundae', 'Vanilla ice cream with chocolate sauce', 199.00, true, true, 8, 'demo-restaurant-id')
 ON CONFLICT ("id") DO NOTHING;
 
 -- Sample Orders
