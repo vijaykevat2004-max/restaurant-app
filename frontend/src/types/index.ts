@@ -25,9 +25,11 @@ export interface Restaurant {
   slug: string;
   upiId: string | null;
   upiName: string | null;
+  razorpayId: string | null;
+  razorpaySecret: string | null;
   paytmMid: string | null;
   paytmKey: string | null;
-  paymentMode: 'upi' | 'paytm';
+  paymentMode: 'upi' | 'razorpay' | 'paytm';
   branches: Branch[];
   _count: {
     users: number;

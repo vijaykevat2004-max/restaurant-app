@@ -31,7 +31,9 @@ export function SettingsPage() {
   const [upiName, setUpiName] = useState('');
   const [paytmMid, setPaytmMid] = useState('');
   const [paytmKey, setPaytmKey] = useState('');
-  const [paymentMode, setPaymentMode] = useState<'upi' | 'paytm'>('upi');
+  const [razorpayKeyId, setRazorpayKeyId] = useState('');
+  const [razorpaySecret, setRazorpaySecret] = useState('');
+  const [paymentMode, setPaymentMode] = useState<'upi' | 'razorpay' | 'paytm'>('upi');
   const [isSavingUpi, setIsSavingUpi] = useState(false);
   const [isSavingRestaurant, setIsSavingRestaurant] = useState(false);
 
@@ -43,6 +45,9 @@ export function SettingsPage() {
         setRestaurantName(restaurantData.name || '');
         setUpiId(restaurantData.upiId || '');
         setUpiName(restaurantData.upiName || '');
+        setRazorpayKeyId(restaurantData.razorpayId || '');
+        setRazorpaySecret(restaurantData.razorpaySecret || '');
+        setPaymentMode(restaurantData.paymentMode as 'upi' | 'razorpay' | 'paytm' || 'upi');
       } catch (error) {
         console.error('Failed to fetch settings:', error);
       } finally {
@@ -72,11 +77,13 @@ export function SettingsPage() {
       await api.updateRestaurant({
         upiId,
         upiName,
+        razorpayId: paymentMode === 'razorpay' ? razorpayKeyId : null,
+        razorpaySecret: paymentMode === 'razorpay' ? razorpaySecret : null,
         paytmMid: paymentMode === 'paytm' ? paytmMid : null,
         paytmKey: paymentMode === 'paytm' ? paytmKey : null,
         paymentMode
       });
-      setRestaurant({ ...restaurant!, upiId, upiName, paymentMode } as Restaurant);
+      setRestaurant({ ...restaurant!, upiId, upiName, razorpayId: razorpayKeyId, paymentMode } as Restaurant);
     } catch (error) {
       console.error('Failed to save UPI settings:', error);
     } finally {
@@ -263,7 +270,7 @@ export function SettingsPage() {
             </div>
 
             {/* Payment Mode Selection */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
               <button
                 onClick={() => setPaymentMode('upi')}
                 className={`p-6 rounded-2xl border-2 transition-all duration-300 ${
@@ -277,6 +284,20 @@ export function SettingsPage() {
                 </div>
                 <h3 className="text-lg font-bold text-white text-center mb-2">UPI QR Code</h3>
                 <p className="text-sm text-white/50 text-center">Scan & Pay directly</p>
+              </button>
+              <button
+                onClick={() => setPaymentMode('razorpay')}
+                className={`p-6 rounded-2xl border-2 transition-all duration-300 ${
+                  paymentMode === 'razorpay'
+                    ? 'border-blue-500 bg-gradient-to-br from-blue-500/20 to-cyan-500/20'
+                    : 'border-white/10 hover:border-blue-500/30 bg-white/5'
+                }`}
+              >
+                <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
+                  <CreditCard className="w-7 h-7 text-white" />
+                </div>
+                <h3 className="text-lg font-bold text-white text-center mb-2">Razorpay</h3>
+                <p className="text-sm text-white/50 text-center">Cards, UPI, NetBanking</p>
               </button>
               <button
                 onClick={() => setPaymentMode('paytm')}
@@ -317,6 +338,44 @@ export function SettingsPage() {
                     placeholder="Restaurant Name"
                     className="input-vibrant"
                   />
+                </div>
+              </div>
+            )}
+
+            {/* Razorpay Settings */}
+            {paymentMode === 'razorpay' && (
+              <div className="space-y-5 max-w-xl">
+                <div>
+                  <label className="block text-sm font-medium text-white/60 mb-2">Razorpay Key ID</label>
+                  <input
+                    type="text"
+                    value={razorpayKeyId}
+                    onChange={(e) => setRazorpayKeyId(e.target.value)}
+                    placeholder="rzp_live_XXXXXXXXXX"
+                    className="input-vibrant"
+                  />
+                  <p className="text-xs text-white/40 mt-2">Get from Razorpay Dashboard → API Keys</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-white/60 mb-2">Razorpay Key Secret</label>
+                  <input
+                    type="password"
+                    value={razorpaySecret}
+                    onChange={(e) => setRazorpaySecret(e.target.value)}
+                    placeholder="Your Razorpay Secret"
+                    className="input-vibrant"
+                  />
+                </div>
+                <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                  <p className="text-sm text-blue-400">
+                    <strong>How to get Razorpay credentials:</strong>
+                  </p>
+                  <ul className="text-sm text-white/50 mt-2 space-y-1">
+                    <li>1. Go to dashboard.razorpay.com</li>
+                    <li>2. Create account and complete KYC</li>
+                    <li>3. Go to Settings → API Keys</li>
+                    <li>4. Copy Key ID and Key Secret</li>
+                  </ul>
                 </div>
               </div>
             )}
@@ -374,11 +433,13 @@ export function SettingsPage() {
                 <Sparkles className="w-6 h-6 text-violet-400 flex-shrink-0 mt-0.5" />
                 <div>
                   <h3 className="font-semibold text-white">
-                    {paymentMode === 'upi' ? 'How UPI works' : 'How Paytm works'}
+                    {paymentMode === 'upi' ? 'How UPI works' : paymentMode === 'razorpay' ? 'How Razorpay works' : 'How Paytm works'}
                   </h3>
                   <p className="text-sm text-white/60 mt-1">
                     {paymentMode === 'upi'
                       ? 'Customers scan QR code on table, pay via any UPI app, payment is tracked automatically.'
+                      : paymentMode === 'razorpay'
+                      ? 'Customers pay via cards, UPI, or NetBanking. Payment is automatically verified via Razorpay webhook.'
                       : 'Customers pay through Paytm gateway, payment is automatically verified and credited to wallet.'}
                   </p>
                 </div>

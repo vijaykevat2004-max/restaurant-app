@@ -63,6 +63,8 @@ export function CustomerOrderPage() {
   const [soundEnabled] = useState(true);
   const [showStatusBanner, setShowStatusBanner] = useState(false);
   const [menuChanged, setMenuChanged] = useState(false);
+  const [renderRazorpayButton, setRenderRazorpayButton] = useState(false);
+  const [isRazorpayReady, setIsRazorpayReady] = useState(false);
   const prevStatus = useRef<string | null>(null);
   const lastItemCountRef = useRef(0);
   const initialized = useRef(false);
@@ -112,6 +114,30 @@ export function CustomerOrderPage() {
     const interval = setInterval(fetchMenu, 5000);
     return () => clearInterval(interval);
   }, [fetchMenu]);
+
+  useEffect(() => {
+    if (!restaurant?.id) return;
+    const loadRazorpayConfig = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/payment/config/${restaurant.id}`);
+        const data = await res.json();
+        if (data.success && data.data.paymentMode === 'razorpay' && data.data.hasRazorpay) {
+          setRenderRazorpayButton(true);
+          if (!(window as any).Razorpay) {
+            const script = document.createElement('script');
+            script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+            script.onload = () => setIsRazorpayReady(true);
+            document.body.appendChild(script);
+          } else {
+            setIsRazorpayReady(true);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load payment config:', err);
+      }
+    };
+    loadRazorpayConfig();
+  }, [restaurant?.id]);
 
   useEffect(() => {
     if (!order) return;
@@ -219,6 +245,50 @@ export function CustomerOrderPage() {
 
   const handlePayAtCounter = () => {
     setStep('success');
+  };
+
+  const handleRazorpayPayment = async () => {
+    if (!order || !restaurant) return;
+    try {
+      const res = await fetch(`${API_BASE}/payment/create-razorpay-order`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          restaurantId: restaurant.id,
+          amount: getCartTotal(),
+          orderId: order.id,
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+
+      const options = {
+        key: data.data.razorpayKeyId,
+        amount: data.data.amount,
+        currency: data.data.currency,
+        name: restaurant.name,
+        order_id: data.data.razorpayOrderId,
+        handler: async function (response: any) {
+          await fetch(`${API_BASE}/payment/verify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              paymentId: response.razorpay_payment_id,
+              orderId: order.id,
+              status: 'SUCCESS',
+            }),
+          });
+          setStep('success');
+        },
+        prefill: { name: customerName },
+        theme: { color: '#10B981' },
+      };
+
+      const razorpay = new (window as any).Razorpay(options);
+      razorpay.open();
+    } catch (err: any) {
+      setError(err.message || 'Payment failed');
+    }
   };
 
   const handleNewOrder = () => {
@@ -482,28 +552,41 @@ export function CustomerOrderPage() {
             <h2 className="text-2xl font-bold text-white mb-2">Order #{order.orderNumber}</h2>
             <p className="text-white/60 mb-6">Total: {formatCurrency(getCartTotal())}</p>
 
-            {restaurant?.upiId ? (
-              <div className="space-y-4">
-                <div className="bg-white p-4 rounded-xl">
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=${encodeURIComponent(restaurant.upiId || '')}&pn=${encodeURIComponent(restaurant.upiName || restaurant.name)}&am=${getCartTotal()}&cu=INR`}
-                    alt="QR Code"
-                    className="w-48 h-48 mx-auto"
-                  />
-                </div>
-                <p className="text-sm text-white/50">Scan QR code to pay</p>
-                <p className="font-mono text-rose-300">{restaurant.upiId}</p>
-              </div>
-            ) : (
-              <p className="text-white/60 mb-4">Pay at counter</p>
-            )}
+            <div className="space-y-4">
+              {/* Pay with Razorpay */}
+              {renderRazorpayButton && (
+                <button
+                  onClick={handleRazorpayPayment}
+                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-bold flex items-center justify-center gap-2"
+                >
+                  <CreditCard className="w-5 h-5" />
+                  Pay with Card / UPI
+                </button>
+              )}
 
-            <button
-              onClick={handlePayAtCounter}
-              className="w-full mt-6 py-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold"
-            >
-              Done - Pay at Counter
-            </button>
+              {/* UPI QR Code */}
+              {restaurant?.upiId && (
+                <div>
+                  <div className="bg-white p-4 rounded-xl mb-2">
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=${encodeURIComponent(restaurant.upiId)}&pn=${encodeURIComponent(restaurant.upiName || restaurant.name)}&am=${getCartTotal()}&cu=INR`}
+                      alt="UPI QR"
+                      className="w-48 h-48 mx-auto"
+                    />
+                  </div>
+                  <p className="text-sm text-white/50">Scan with any UPI app</p>
+                  <p className="font-mono text-rose-300 text-sm mt-1">{restaurant.upiId}</p>
+                </div>
+              )}
+
+              {/* Pay at Counter */}
+              <button
+                onClick={handlePayAtCounter}
+                className="w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold"
+              >
+                Done - Pay at Counter
+              </button>
+            </div>
           </div>
         </div>
       )}
