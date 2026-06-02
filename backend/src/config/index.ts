@@ -30,7 +30,7 @@ export const config = {
     apiSecret: process.env.CLOUDINARY_API_SECRET,
   },
   supabase: {
-    url: process.env.SUPABASE_URL || 'https://ghgilnuwkbiqmdhzzznq.supabase.co',
-    serviceKey: process.env.SUPABASE_SERVICE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdoZ2lsbnV3a2JpcW1kaHp6em5xIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTg5MDA3OCwiZXhwIjoyMDkxNDY2MDc4fQ.p6c9Ut9Or37IY14H-eIHc6_-ouSBAbutkW4zBoZuA1g',
+    url: process.env.SUPABASE_URL || '',
+    serviceKey: process.env.SUPABASE_SERVICE_KEY || '',
   },
 };
