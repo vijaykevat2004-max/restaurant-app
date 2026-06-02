@@ -40,7 +40,17 @@ router.post('/register', async (req: AuthenticatedRequest, res: Response) => {
       return;
     }
 
-    const slug = body.restaurantName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    let slug = body.restaurantName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+    // Check if slug already exists and add suffix if needed
+    const { data: existingSlug } = await supabaseAdmin
+      .from('Restaurant')
+      .select('slug')
+      .eq('slug', slug)
+      .single();
+    if (existingSlug) {
+      slug = `${slug}-${Date.now().toString(36)}`;
+    }
     const restaurantId = `rest-${Date.now()}`;
 
     const { error: restaurantError } = await supabaseAdmin.from('Restaurant').insert({
@@ -137,6 +147,7 @@ router.post('/register', async (req: AuthenticatedRequest, res: Response) => {
             price: item.price,
             isAvailable: true,
             isVeg: item.isVeg,
+            restaurantId,
           });
         }
       }
